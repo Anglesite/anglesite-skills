@@ -428,6 +428,9 @@ const isMain =
 
 if (isMain) {
   const root = resolve(import.meta.dirname ?? ".", "..");
+  // Only skills/ is exported — deliberately NOT .claude/skills/, which holds
+  // Claude-Code-native skills for developing this plugin (never shipped to end
+  // users). Widening this glob would publish internal tooling to skills.sh.
   const skillsDir = join(root, "skills");
   const outRoot = join(root, "agent-skills");
   const version = JSON.parse(readFileSync(join(root, "package.json"), "utf-8")).version;
