@@ -83,7 +83,7 @@ rendered artifact exists nowhere the owner can see, keep, or move:
 |---|---|---|
 | Third-party JS on page | None | None |
 | Third-party image requests | Proxied via the owner's domain | Self-hosted |
-| Platform coverage | X + Instagram only | Any URL (Open Graph) + per-platform adapters |
+| Platform coverage | X + Instagram only | Any URL (Open Graph) + per-platform adapters — but **Instagram is a wash**, not a win: it blocks automated requests, so it falls back to the manual screenshot below, where Zaraz renders it automatically |
 | Visible in `astro dev` / `preview` | **No** | Yes |
 | Works off Cloudflare | **No** | Yes |
 | Configuration lives in | The Cloudflare dashboard, per zone | The owner's git repo |
