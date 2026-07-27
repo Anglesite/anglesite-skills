@@ -34,3 +34,4 @@ ADRs follow the [MADR](https://adr.github.io/madr/) format.
 - [ADR-0022](0022-passkey-indieauth.md) — Authenticate the IndieAuth owner with passkeys (`@dwk/webauthn`)
 - [ADR-0023](0023-native-mac-app.md) — Ship a native macOS host (`Anglesite-app`) that embeds — not forks — this plugin
 - [ADR-0024](0024-safari-rendered-extraction-backend.md) — Safari's MCP server as an optional rendered-extraction backend
+- [ADR-0025](0025-snapshotted-embeds.md) — Snapshot social embeds into the owner's repo instead of rendering them remotely

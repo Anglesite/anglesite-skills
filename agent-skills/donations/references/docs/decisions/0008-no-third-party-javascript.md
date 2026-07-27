@@ -99,10 +99,15 @@ Preferred privacy-respecting alternatives to common third-party scripts:
 |---|---|
 | Google Analytics | Cloudflare Web Analytics (auto-included) |
 | Google Maps embed | OpenStreetMap static image or link |
-| Social media embeds | Static screenshots with links to original posts |
+| Social media embeds | Snapshotted first-party embed cards (see ADR-0025) |
 | Google Fonts CDN | System fonts or self-hosted WOFF2 (see ADR-0005) |
 | Live chat widget | Contact form with Cloudflare Worker backend |
-| YouTube embed | Link to video with a thumbnail image |
+| YouTube embed | Snapshotted card linking to the video, with a self-hosted thumbnail (see ADR-0025) |
 | Disqus or Facebook comments | Giscus (GitHub Discussions) — see exception #8 |
 
 Each alternative eliminates a third-party dependency while preserving the functionality the owner needs.
+
+Note that the social-embed and YouTube rows do **not** add an exception to the list above.
+A snapshotted embed card is first-party HTML and first-party images served from the owner's
+own domain, so it needs no CSP allowlist entry at all — which is the test of whether an
+"alternative" genuinely preserves this ADR rather than quietly widening it. See ADR-0025.
