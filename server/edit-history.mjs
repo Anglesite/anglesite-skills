@@ -20,6 +20,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ANGLESITE_COMMIT_IDENTITY } from "./git-identity.mjs";
 
 const EDITS_REF = "refs/heads/anglesite/edits";
 
@@ -95,7 +96,7 @@ export async function recordEdit(projectRoot, { file, files, range, message }) {
       const parent = runGit(projectRoot, ["rev-parse", EDITS_REF]);
       const commit = runGit(projectRoot, [
         "commit-tree", tree, "-p", parent, "-m", formatMessage({ file, files, range, message }),
-      ]);
+      ], ANGLESITE_COMMIT_IDENTITY);
       // CAS update with OLDVALUE so two concurrent recordEdits can't silently clobber each other.
       runGit(projectRoot, ["update-ref", EDITS_REF, commit, parent]);
       return commit;

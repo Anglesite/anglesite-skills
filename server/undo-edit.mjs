@@ -16,6 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import { ANGLESITE_COMMIT_IDENTITY } from "./git-identity.mjs";
 
 const EDITS_REF = "refs/heads/anglesite/edits";
 
@@ -100,16 +101,10 @@ export async function undoEdit(projectRoot, { commit, force = false } = {}) {
   // 7. Advance the hidden branch with a new commit whose tree matches parent's tree.
   const parentTree = runGit(projectRoot, ["rev-parse", `${parent}^{tree}`]);
   const message = `undo: ${files.join(", ")}`;
-  const env = {
-    GIT_AUTHOR_NAME: "Anglesite",
-    GIT_AUTHOR_EMAIL: "edits@anglesite.local",
-    GIT_COMMITTER_NAME: "Anglesite",
-    GIT_COMMITTER_EMAIL: "edits@anglesite.local",
-  };
   const newCommit = runGit(
     projectRoot,
     ["commit-tree", parentTree, "-p", head, "-m", message],
-    env,
+    ANGLESITE_COMMIT_IDENTITY,
   );
   // CAS update: only advance if HEAD is still what we read in step 1.
   runGit(projectRoot, ["update-ref", EDITS_REF, newCommit, head]);
