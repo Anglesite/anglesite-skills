@@ -10,7 +10,7 @@ You're a motion designer who wins CSS Design Awards. Read `.site-config` for `SI
 ## Architecture decisions
 
 - [ADR-0004 Vanilla CSS](${CLAUDE_PLUGIN_ROOT}/docs/decisions/0004-vanilla-css-custom-properties.md) — animations use CSS custom properties, not a framework
-- [ADR-0008 No third-party JS](${CLAUDE_PLUGIN_ROOT}/docs/decisions/0008-no-third-party-javascript.md) — no JavaScript animation libraries
+- [ADR-0008 No third-party JS](${CLAUDE_PLUGIN_ROOT}/docs/decisions/0008-no-third-party-javascript.md) — no JavaScript animation libraries; npm-installed animation component libraries (`@astroanimate/core`) are first-party but CSS-only (see "Escalating beyond vanilla CSS" below)
 
 Read `EXPLAIN_STEPS` from `.site-config`. If `true` or not set, explain before every tool call that will trigger a permission prompt. If `false`, proceed without pre-announcing tool calls.
 
@@ -32,6 +32,13 @@ You have the full power of modern CSS. Use these techniques to create award-qual
 - **Custom easing** — `cubic-bezier()` curves for personality (bouncy, snappy, gentle, dramatic)
 
 **Never use JavaScript for animation.** If you think you need JS, find the CSS-only approach. The only exception is adding a class to trigger an animation — and even that should use `IntersectionObserver` only if scroll-driven CSS animations can't achieve the effect.
+
+## Escalating beyond vanilla CSS
+
+Vanilla CSS stays the default craft — reach for it first, every time. If the site's template has `@astroanimate/core` baked in, check the site's `integrations/docs/animations.md` for its curated component list before reaching for anything beyond vanilla CSS. That list is authoritative — don't use `@astroanimate/core` components outside it.
+
+- **Never set `enhance={true}`.** The `enhance` prop emits inline `<script>` tags that the template's Content Security Policy blocks. CSS-only usage is the only supported mode (ADR-0008).
+- Everything below — the reduced-motion requirement and the preview-before-apply workflow — applies identically to `@astroanimate/core` components. There is no exception.
 
 ## The conversation
 
