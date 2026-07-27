@@ -122,3 +122,41 @@ describe("recordEdit — multi-file (extract-component)", () => {
     expect(git(["show", `${sha}:README.md`])).toBe("edited");
   });
 });
+
+describe("recordEdit — no ambient git identity (#428)", () => {
+  it("still commits when the guest has no git config and no GIT_AUTHOR/COMMITTER env", async () => {
+    // Reproduces the container guest environment from #428: no ~/.gitconfig, no
+    // GIT_AUTHOR_NAME/EMAIL or GIT_COMMITTER_NAME/EMAIL in the ambient environment.
+    // `commit-tree` must not depend on either — recordEdit has to supply its own identity.
+    git(["config", "--unset", "user.email"]);
+    git(["config", "--unset", "user.name"]);
+    // Also isolate from this sandbox's own ~/.gitconfig (which sets user.name/email for its
+    // unrelated commit-signing needs) and any system config, so the ambient environment matches
+    // the container guest in #428: no identity available from config OR env, anywhere.
+    const identityKeys = [
+      "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+      "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM",
+    ];
+    const saved = Object.fromEntries(identityKeys.map((k) => [k, process.env[k]]));
+    identityKeys.forEach((k) => delete process.env[k]);
+    process.env.GIT_CONFIG_GLOBAL = "/dev/null";
+    process.env.GIT_CONFIG_NOSYSTEM = "1";
+
+    try {
+      writeFileSync(join(repo, "README.md"), "edited\n");
+      const sha = await recordEdit(repo, {
+        file: "README.md",
+        range: { start: 0, end: 7 },
+        message: "anglesite: edit README.md",
+      });
+
+      expect(sha).toMatch(/^[0-9a-f]{40}$/);
+      expect(git(["show", `${sha}:README.md`])).toBe("edited");
+    } finally {
+      identityKeys.forEach((k) => {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      });
+    }
+  });
+});

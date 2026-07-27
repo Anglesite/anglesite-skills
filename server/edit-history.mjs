@@ -93,9 +93,15 @@ export async function recordEdit(projectRoot, { file, files, range, message }) {
       }
       const tree = runGit(projectRoot, ["write-tree"], env);
       const parent = runGit(projectRoot, ["rev-parse", EDITS_REF]);
+      const commitEnv = {
+        GIT_AUTHOR_NAME: "Anglesite",
+        GIT_AUTHOR_EMAIL: "edits@anglesite.local",
+        GIT_COMMITTER_NAME: "Anglesite",
+        GIT_COMMITTER_EMAIL: "edits@anglesite.local",
+      };
       const commit = runGit(projectRoot, [
         "commit-tree", tree, "-p", parent, "-m", formatMessage({ file, files, range, message }),
-      ]);
+      ], commitEnv);
       // CAS update with OLDVALUE so two concurrent recordEdits can't silently clobber each other.
       runGit(projectRoot, ["update-ref", EDITS_REF, commit, parent]);
       return commit;
