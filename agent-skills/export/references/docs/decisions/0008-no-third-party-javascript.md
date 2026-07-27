@@ -46,6 +46,15 @@ All other external scripts are blocked by default, enforced by the Content Secur
 
 npm-installed creative coding libraries (p5.js, Three.js, GSAP, Tone.js, D3.js, and others) are **not** third-party scripts. They are bundled by Astro's build process and served as first-party JavaScript from the same origin. The CSP `script-src 'self'` policy covers them without modification. These libraries are used by the `creative-canvas` skill to add interactive visual effects to any site — from a web artist's generative art portfolio to a bakery's holiday snow effect. No CSP allowlist entry or pre-deploy scan exception is needed.
 
+The same reasoning covers npm-installed **animation component libraries**. The
+Anglesite site template ships `@astroanimate/core` (exact-pinned) as a default
+dependency: its components are CSS-first, rendered at build time, and served
+first-party under `script-src 'self'`. One constraint applies: the library's
+`enhance` prop emits inline `<script>` tags, which the template CSP blocks
+(no `'unsafe-inline'`, no hashes) — so only CSS-only usage (`enhance` unset or
+`false`) is supported. The curated list lives in the site's
+`integrations/docs/animations.md`.
+
 ### Consequences
 
 * Good, because visitors are not tracked, fingerprinted, or profiled
