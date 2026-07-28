@@ -103,7 +103,16 @@ export async function recordEdit(projectRoot, { file, files, range, message }) {
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
-  } catch {
+  } catch (error) {
+    // Silent here means a real recordEdit failure is indistinguishable from the routine
+    // "no commits yet" / "not a git repo" early returns above — the dispatcher already
+    // treats `undefined` as "history not recorded, on-disk patch still landed" and omits
+    // `commit` from the edit-applied reply with no error surfaced anywhere else in the
+    // pipeline. That silence is exactly why #428 (a missing-identity `commit-tree` failure)
+    // went undetected for as long as it did: every edit "succeeded" with no history and no
+    // trace. stderr is captured into the app's debug pane alongside the rest of this guest
+    // process's output (Anglesite-app CLAUDE.md: "logs are sacred").
+    console.error(`recordEdit: git operation failed, edit history not recorded: ${error.message}`);
     return undefined;
   }
 }
