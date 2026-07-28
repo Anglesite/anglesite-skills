@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -81,6 +81,22 @@ describe("recordEdit", () => {
     const sha = await recordEdit(repo, { file: "src/new.txt", range: { start: 0, end: 0 }, message: "add" });
     expect(sha).toMatch(/^[0-9a-f]{40}$/);
     expect(git(["show", `${sha}:src/new.txt`])).toBe("fresh content");
+  });
+
+  it("logs the underlying git failure instead of swallowing it silently (#1066)", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      // No such file on disk — hash-object -w fails, caught by recordEdit's outer try/catch.
+      const sha = await recordEdit(repo, {
+        file: "does/not/exist.txt",
+        range: { start: 0, end: 0 },
+        message: "x",
+      });
+      expect(sha).toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("recordEdit: git operation failed"));
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns undefined when projectRoot is not a git repository", async () => {
