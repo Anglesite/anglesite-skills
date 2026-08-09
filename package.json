@@ -27,6 +27,8 @@
     "url": "https://github.com/Anglesite/anglesite"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/semver": "^7.7.1",
     "html-validate": "^10.11.2",
     "jsdom": "^29.1.1",
@@ -48,8 +50,10 @@
   },
   "dependencies": {
     "@astrojs/compiler": "^4.0.0",
-    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "css-tree": "^3.2.1",
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.0",
+    "zod": "^4.2.0"
   }
 }
