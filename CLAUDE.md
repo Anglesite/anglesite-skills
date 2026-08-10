@@ -2,7 +2,7 @@
 
 Anglesite is a Claude plugin that scaffolds and manages websites for small businesses. It works with Claude Cowork (non-technical site owners, GUI) and Claude Code (developers, CLI). It generates Astro + Keystatic sites deployed to Cloudflare Workers (Static Assets, via the `@astrojs/cloudflare` adapter).
 
-**Version:** 1.8.0
+**Version:** 1.9.0
 
 > Don't hand-edit or remove that line: `bin/release.ts` rewrites it on every bump and **throws** if it's missing, and `tests/release.test.ts` asserts it matches `package.json`.
 
