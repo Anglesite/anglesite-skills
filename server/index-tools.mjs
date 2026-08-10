@@ -16,6 +16,7 @@ import { listContent } from "./list-content.mjs";
 import { createPage, createPost, createTyped } from "./create-content.mjs";
 import { creatableContentTypeIds } from "./content-types.mjs";
 import { buildComponentModel, ComponentModelError } from "./component-model.mjs";
+import { buildPageModel, PageModelError } from "./page-model.mjs";
 
 /**
  * The plugin version is the single source of truth (`bin/release.ts` keeps the
@@ -170,6 +171,28 @@ export function buildServer(projectRoot) {
                 detail: String(err?.message ?? err),
               }),
             },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.tool(
+    "get_page_model",
+    "Parse a page .astro file into a block-annotated template tree: the same node shape get_component_model returns, with each component instance that resolves to a theme block-manifest entry carrying owner-facing name/description/icon/propEditors/slots. Used by the WYSIWYG block editor.",
+    {
+      path: z.string().describe("Page path relative to the project root, e.g. src/pages/index.astro"),
+    },
+    async ({ path }) => {
+      try {
+        const model = await buildPageModel(projectRoot, path);
+        return { content: [{ type: "text", text: JSON.stringify(model) }] };
+      } catch (err) {
+        const reason = err instanceof PageModelError ? err.reason : "internal-error";
+        return {
+          content: [
+            { type: "text", text: JSON.stringify({ type: "anglesite:page-model-failed", reason, detail: String(err?.message ?? err) }) },
           ],
           isError: true,
         };

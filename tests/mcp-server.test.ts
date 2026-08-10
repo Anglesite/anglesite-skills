@@ -185,6 +185,7 @@ describe("MCP annotation server", () => {
         "create_page",
         "create_post",
         "get_component_model",
+        "get_page_model",
         "list_annotations",
         "list_content",
         "resolve_annotation",
@@ -545,6 +546,50 @@ describe("MCP annotation server", () => {
       const failResult = failure.result as { content: { text: string }[]; isError?: boolean };
       expect(failResult.isError).toBe(true);
       expect(JSON.parse(failResult.content[0].text).reason).toBe("read-failed");
+    } finally {
+      proc.kill();
+    }
+  });
+
+  it("get_page_model returns a block-annotated tree over stdio", async () => {
+    mkdirSync(join(tmpDir, "src", "pages"), { recursive: true });
+    mkdirSync(join(tmpDir, "src", "components"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "blocks.manifest.json"),
+      JSON.stringify({
+        schemaVersion: "anglesite-block-manifest/1",
+        modules: [{ path: "src/components/Hcard.astro", export: "Hcard", name: "Business Card" }],
+      }),
+    );
+    writeFileSync(join(tmpDir, "src", "components", "Hcard.astro"), `---\n---\n<div>card</div>\n`);
+    writeFileSync(
+      join(tmpDir, "src", "pages", "index.astro"),
+      `---\nimport Hcard from "../components/Hcard.astro";\n---\n<Hcard />\n`,
+    );
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const response = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "get_page_model", arguments: { path: "src/pages/index.astro" } },
+      });
+      const result = response.result as { content: { text: string }[]; isError?: boolean };
+      expect(result.isError).toBeFalsy();
+      const model = JSON.parse(result.content[0].text);
+      expect(model.tree.children[0].block.name).toBe("Business Card");
     } finally {
       proc.kill();
     }
