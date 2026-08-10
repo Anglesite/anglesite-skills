@@ -238,13 +238,18 @@ export function createEditFailedContent(id, reason, detail) {
  *  the app never needs a second round-trip to `get_component_model` after a write. `newFile` is
  *  additive (extract-component only): the project-relative path of the brand-new component file
  *  the op created, alongside `file`/`range` which still describe the SOURCE file's own edit —
- *  every other op's reply shape is unchanged by this field's addition. */
-export function createEditAppliedContent(id, file, range, commit, result, model, newFile) {
+ *  every other op's reply shape is unchanged by this field's addition. `inverse` is the
+ *  computed `{op, component}` counter-edit some component-structure ops (insertBlock/moveBlock/
+ *  deleteBlock/setProp) attach — `component.baseVersion` is stamped with the POST-write content
+ *  hash by the dispatcher (it can't be known until the write actually happens), so this field is
+ *  ready to send straight back through `apply_edit` unmodified for undo. */
+export function createEditAppliedContent(id, file, range, commit, result, model, newFile, inverse) {
   const body = { type: "anglesite:edit-applied", id, file, range };
   if (commit !== undefined) body.commit = commit;
   if (result !== undefined) body.result = result;
   if (model !== undefined) body.model = model;
   if (newFile !== undefined) body.newFile = newFile;
+  if (inverse !== undefined) body.inverse = inverse;
   return { type: "text", text: JSON.stringify(body) };
 }
 

@@ -50,8 +50,8 @@ function failed(id, reason, detail) {
   return { content: [createEditFailedContent(id, reason, detail)], isError: true };
 }
 
-function applied(id, file, range, commit, result, model, newFile) {
-  return { content: [createEditAppliedContent(id, file, range, commit, result, model, newFile)] };
+function applied(id, file, range, commit, result, model, newFile, inverse) {
+  return { content: [createEditAppliedContent(id, file, range, commit, result, model, newFile, inverse)] };
 }
 
 /** Splice `replacement` into `source` at the resolved byte range. */
@@ -381,6 +381,19 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     }
   }
 
+  // Some component-structure resolvers (insertBlock/moveBlock/deleteBlock/setProp) attach an
+  // `inverse: {op, component}` counter-edit, deliberately unstamped — the inverse targets
+  // whatever this write's post-write content hash turns out to be, which isn't knowable until
+  // the write actually happens (see component-structure-edit.mjs). Stamp it now, reusing `next`
+  // (the exact bytes atomicWrite just put on disk) rather than re-reading the file.
+  let inverse;
+  if (resolution.inverse) {
+    inverse = {
+      ...resolution.inverse,
+      component: { ...resolution.inverse.component, baseVersion: fileVersion(next) },
+    };
+  }
+
   return applied(
     edit.id,
     file,
@@ -388,5 +401,7 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     commit,
     imageResult ? { src: imageResult.src, srcset: imageResult.srcset } : undefined,
     model,
+    undefined,
+    inverse,
   );
 }
