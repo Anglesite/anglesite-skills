@@ -188,3 +188,20 @@ export function buildTemplateNodeIndex(ast, source) {
 
   return { byId, rootId };
 }
+
+/** Projects one indexed node (and its subtree) into the public TemplateNode shape returned by
+ *  get_component_model / get_page_model. Shared so both read paths serialize identically. */
+export function toPublicNode(byId, id) {
+  const r = byId.get(id);
+  const node = {
+    id: r.id,
+    kind: r.kind,
+    tag: r.tag,
+    attrs: r.attrs.map(({ name, value }) => ({ name, value })),
+    span: r.span,
+    loc: r.loc,
+    children: r.childIds.map((cid) => toPublicNode(byId, cid)),
+  };
+  if (r.text !== undefined) node.text = r.text;
+  return node;
+}

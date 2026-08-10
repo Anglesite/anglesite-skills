@@ -7,7 +7,7 @@ import { parse } from "@astrojs/compiler";
 import { parseProps } from "./props-interface.mjs";
 import { fileVersion } from "./file-version.mjs";
 import { indexCssRules } from "./css-rule-index.mjs";
-import { buildTemplateNodeIndex, buildLineStarts, offsetFromLineColumn } from "./component-node-index.mjs";
+import { buildTemplateNodeIndex, buildLineStarts, offsetFromLineColumn, toPublicNode } from "./component-node-index.mjs";
 
 export class ComponentModelError extends Error {
   constructor(reason, message) {
@@ -100,17 +100,3 @@ function extractRules(styleElement, lineStarts) {
   }));
 }
 
-function toPublicNode(byId, id) {
-  const r = byId.get(id);
-  const node = {
-    id: r.id,
-    kind: r.kind,
-    tag: r.tag,
-    attrs: r.attrs.map(({ name, value }) => ({ name, value })),
-    span: r.span,
-    loc: r.loc,
-    children: r.childIds.map((cid) => toPublicNode(byId, cid)),
-  };
-  if (r.text !== undefined) node.text = r.text;
-  return node;
-}

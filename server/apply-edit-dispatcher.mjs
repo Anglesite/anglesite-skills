@@ -50,8 +50,8 @@ function failed(id, reason, detail) {
   return { content: [createEditFailedContent(id, reason, detail)], isError: true };
 }
 
-function applied(id, file, range, commit, result, model, newFile) {
-  return { content: [createEditAppliedContent(id, file, range, commit, result, model, newFile)] };
+function applied(id, file, range, commit, result, model, newFile, inverse) {
+  return { content: [createEditAppliedContent(id, file, range, commit, result, model, newFile, inverse)] };
 }
 
 /** Splice `replacement` into `source` at the resolved byte range. */
@@ -338,13 +338,20 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     return failed(edit.id, "write-failed", `read ${file}: ${err.message}`);
   }
 
-  // Component ops resolve via an async parser (component-style-edit.mjs's /
-  // component-structure-edit.mjs's `await parse(...)`), which opens a real yield point
-  // between that resolver's own baseVersion check and this second, independent read. A
-  // concurrent edit landing in that window would otherwise splice this call's now-stale
-  // byte offsets into the other call's already-written content — re-validate the hash
-  // against this fresh read, immediately before splicing, to close the gap.
-  if (COMPONENT_OPS.has(edit.op) && fileVersion(source) !== edit.component.baseVersion) {
+  // This `source` read is a second, independent read from whatever the resolver itself read to
+  // compute `range`/`replacement` — the two are separated by at least one microtask tick (the
+  // `await resolveEdit(...)` above), which is a real gap a concurrent write can land in even
+  // when the resolver's own internal work is fully synchronous (e.g. setDesignToken's css-tree
+  // parse — no `await` inside it doesn't mean no yield point *around* it: `await`ing a resolved
+  // promise still suspends this function back to its caller for one microtask turn). Component
+  // ops (component-style-edit.mjs's / component-structure-edit.mjs's / text-run-edit.mjs's own
+  // `await parse(...)`) have an additional, longer yield point inside the resolver itself, but
+  // that's not what makes this check necessary — the outer gap alone is enough. Gate on carrying
+  // a `component.baseVersion` at all (not just `COMPONENT_OPS` membership) so any current or
+  // future resolver that stakes a claim on a specific file version — component ops today,
+  // setDesignToken since it targets global.css via the same `component` shape — gets the same
+  // re-validation against this fresh read, immediately before splicing, closing the gap.
+  if (edit.component?.baseVersion != null && fileVersion(source) !== edit.component.baseVersion) {
     return failed(edit.id, "stale", `${file} changed since the model was fetched`);
   }
 
@@ -381,6 +388,19 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     }
   }
 
+  // Some component-structure resolvers (insertBlock/moveBlock/deleteBlock/setProp) attach an
+  // `inverse: {op, component}` counter-edit, deliberately unstamped — the inverse targets
+  // whatever this write's post-write content hash turns out to be, which isn't knowable until
+  // the write actually happens (see component-structure-edit.mjs). Stamp it now, reusing `next`
+  // (the exact bytes atomicWrite just put on disk) rather than re-reading the file.
+  let inverse;
+  if (resolution.inverse) {
+    inverse = {
+      ...resolution.inverse,
+      component: { ...resolution.inverse.component, baseVersion: fileVersion(next) },
+    };
+  }
+
   return applied(
     edit.id,
     file,
@@ -388,5 +408,7 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     commit,
     imageResult ? { src: imageResult.src, srcset: imageResult.srcset } : undefined,
     model,
+    undefined,
+    inverse,
   );
 }

@@ -31,7 +31,8 @@ Two levels of agent instructions exist — do not confuse them:
 | Tool | Purpose |
 |---|---|
 | `add_annotation` / `list_annotations` / `resolve_annotation` | Pin, list, and resolve feedback notes anchored to page elements |
-| `apply_edit` | Patch source from an `ElementInfo` selector. Closed op enum: `replace-text`, `replace-attr`, `replace-image-src`, `edit-style`, `apply-instruction`. Supports `dry_run` (returns `edit-preview`); responses are `edit-applied` / `edit-failed` (`server/apply-edit-schema.mjs`, `apply-edit-dispatcher.mjs`) |
+| `apply_edit` | Patch source from an `ElementInfo` selector or a `component` payload. Closed op enum: `replace-text`, `replace-attr`, `replace-image-src`, `edit-style`, `apply-instruction`, the Component Editor ops, and the WYSIWYG block-editor ops `insertBlock`/`moveBlock`/`deleteBlock`/`setProp`/`editText`/`setDesignToken` — every block-editor op returns a computed `inverse` for host-side undo. Supports `dry_run`; responses are `edit-applied` / `edit-failed` (`server/apply-edit-schema.mjs`, `apply-edit-dispatcher.mjs`) |
+| `get_page_model` | Parse a page `.astro` file into a block-annotated template tree — `get_component_model`'s shape plus a `block` descriptor on nodes that resolve against `blocks.manifest.json` |
 | `undo_edit` | Revert the last applied edit via the `anglesite/edits` history branch |
 | `list_content` | Enumerate pages/posts |
 | `create_page` / `create_post` | Scaffold new content with frontmatter |
@@ -41,6 +42,8 @@ Two levels of agent instructions exist — do not confuse them:
 **Runtime.** The app vendors a pinned Node (`Anglesite-app/scripts/node-version.txt`) to execute `server/*.mjs`; the CI test matrix should track it so the shipped interpreter is exercised here.
 
 **Typed content.** `server/content-types.mjs` is a mirror of the app's `ContentTypeRegistry.swift` — the Swift file is the source of truth. Change it there first, then mirror the change here.
+
+**Block manifest.** `blocks.manifest.json` (project root) registers Astro components and custom elements that the WYSIWYG block editor can insert, move, and edit (via `insertBlock`, `moveBlock`, `deleteBlock`, `setProp`, `editText`, `setDesignToken` ops in `apply_edit`). The file is optional — absence means no registered blocks. See `server/block-manifest-schema.mjs` for the source of truth on structure, validation, and prop-editor kinds.
 
 ## Skills reference
 

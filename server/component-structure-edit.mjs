@@ -4,6 +4,7 @@ import { parse } from "@astrojs/compiler";
 import { fileVersion } from "./file-version.mjs";
 import { buildTemplateNodeIndex } from "./component-node-index.mjs";
 import { ensureImport, pruneImportIfUnused } from "./frontmatter-imports.mjs";
+import { loadBlockManifest, indexManifestByName, BlockManifestError } from "./block-manifest.mjs";
 
 // `resolveAllSpans`/`SpanResolutionError`/`VOID_ELEMENTS`/`escapeAttr`/`importSpecifier`/
 // `collectComponentTags` are exported (in addition to being used locally) so
@@ -14,6 +15,12 @@ import { ensureImport, pruneImportIfUnused } from "./frontmatter-imports.mjs";
 // uses it the other direction: carrying imports for component-kind descendants INTO the new
 // file) — can reuse this module's single, carefully-tested implementation rather than a second,
 // drift-prone copy.
+//
+// `scanTagOpen` is also exported so text-run-edit.mjs's `editText` resolver can find an
+// element's TRUE opening-tag end (respecting quoted attribute values and brace-delimited
+// attribute expressions, e.g. `<p title="a>b">`) instead of a naive `indexOf(">", ...)` that a
+// stray `>` inside an attribute value would fool — same class of bug this function already
+// solves for `findMatchingClose`/`findTagOpenFrom` above, reused rather than duplicated.
 
 function refuse(reason, detail) {
   return { refused: true, reason, detail };
@@ -67,13 +74,53 @@ export async function resolveComponentStructure(projectRoot, edit) {
 
   switch (edit.op) {
     case "set-attr":
+    case "setProp":
       return applySetAttr(relPath, source, byId, component);
     case "remove-node":
+    case "deleteBlock":
       return applyRemoveNode(relPath, source, byId, rootId, component);
     case "insert-node":
-      return applyInsertNode(relPath, source, byId, rootId, component);
+    case "insertBlock": {
+      let effectiveComponent = component;
+      if (component.manifestBlock) {
+        let manifest;
+        try {
+          manifest = loadBlockManifest(projectRoot);
+        } catch (err) {
+          if (!(err instanceof BlockManifestError)) throw err;
+          return refuse(err.reason, err.message);
+        }
+        const entry = indexManifestByName(manifest).get(component.manifestBlock);
+        if (!entry) return refuse("no-match", `no block named "${component.manifestBlock}" in blocks.manifest.json`);
+        effectiveComponent = {
+          ...component,
+          node: { kind: "component", tag: entry.export, componentPath: entry.path, slotName: component.node?.slotName },
+        };
+      }
+      const result = applyInsertNode(relPath, source, byId, rootId, effectiveComponent);
+      if (result.refused) return result;
+      const { __insertAt, __final, ...rest } = result;
+      const inverse = await computeInsertInverse(relPath, __final, __insertAt);
+      if (!inverse) {
+        // `raw`-kind markup is caller-supplied and otherwise unvalidated beyond `typeof ===
+        // "string"` (componentEditSchema) — computeInsertInverse re-parses the FINAL post-insert
+        // source and only returns non-null when it finds a single well-formed node whose span
+        // starts exactly at the insertion offset. A null result for a raw insert means the
+        // caller's markup did NOT parse as one clean node there (e.g. unbalanced tags), so refuse
+        // the whole op rather than leave a written-but-unparseable file with no way to undo it.
+        // Non-raw kinds build markup this module controls itself, so a null inverse there means
+        // the fresh re-parse's span resolution merely failed for some other reason (see the
+        // shared handling below) — don't broaden this specific reason to them.
+        if (effectiveComponent.node?.kind === "raw") {
+          return refuse("invalid-input", "raw markup did not resolve to a single well-formed node at the insertion point — refusing rather than writing unparseable markup");
+        }
+        return refuse("internal-error", "could not compute insertBlock's inverse (span resolution failed on the post-insert re-parse) — refusing rather than applying an edit with no undo");
+      }
+      return { ...rest, inverse };
+    }
     case "move-node":
-      return applyMoveNode(relPath, source, byId, rootId, component);
+    case "moveBlock":
+      return await applyMoveNode(relPath, source, byId, rootId, component);
     default:
       return refuse("invalid-input", `unsupported component-structure op: ${edit.op}`);
   }
@@ -97,6 +144,9 @@ function applySetAttr(file, source, byId, component) {
     return refuse("invalid-input", `set-attr requires a tag-shaped node (element/component/slot), got kind=${node.kind}`);
   }
   const existing = node.attrs.find((a) => a.name === name);
+  // Inverse restores the pre-edit value: whatever setProp is about to overwrite/remove, or
+  // `null` (meaning "remove it") when the attribute didn't exist before this edit at all.
+  const inverse = { op: "setProp", component: { path: file, nodeId, name, value: existing ? existing.value : null } };
 
   if (value === null || value === undefined) {
     if (!existing) return refuse("no-match", `node has no attribute "${name}" to remove`);
@@ -108,11 +158,11 @@ function applySetAttr(file, source, byId, component) {
     let start = existing.span[0];
     while (start > 0 && (source[start - 1] === " " || source[start - 1] === "\t")) start--;
     if (start > 0 && source[start - 1] === "\n") start--;
-    return { file, range: { start, end: existing.span[1] }, replacement: "" };
+    return { file, range: { start, end: existing.span[1] }, replacement: "", inverse };
   }
 
   if (existing) {
-    return { file, range: { start: existing.span[0], end: existing.span[1] }, replacement: `${name}="${escapeAttr(value)}"` };
+    return { file, range: { start: existing.span[0], end: existing.span[1] }, replacement: `${name}="${escapeAttr(value)}"`, inverse };
   }
   // Insert right after the opening tag name / last attribute — i.e. at the end of the node's
   // own attribute list. `node.span[0]` is the start of `<tag`; the tag-name end is the offset
@@ -120,7 +170,7 @@ function applySetAttr(file, source, byId, component) {
   // attribute's end when present; otherwise fall back to just after the tag name.
   const lastAttr = node.attrs[node.attrs.length - 1];
   const insertAt = lastAttr ? lastAttr.span[1] : node.span[0] + 1 + (node.tag?.length ?? 0);
-  return { file, range: { start: insertAt, end: insertAt }, replacement: ` ${name}="${escapeAttr(value)}"` };
+  return { file, range: { start: insertAt, end: insertAt }, replacement: ` ${name}="${escapeAttr(value)}"`, inverse };
 }
 
 // @astrojs/compiler (4.0.0) reports CORRUPTED source positions for ANY node kind —
@@ -223,7 +273,7 @@ function scanBraceBlock(s, start) {
 // End (exclusive) of a tag's own opening `<...>` starting at `start` (s[start] === "<"),
 // honoring quoted attribute values and brace-delimited attribute expressions so a stray
 // `>` inside either doesn't prematurely close the tag. Returns null if unterminated.
-function scanTagOpen(s, start) {
+export function scanTagOpen(s, start) {
   let j = start + 1;
   while (j < s.length) {
     const ch = s[j];
@@ -455,10 +505,38 @@ function applyRemoveNode(file, source, byId, rootId, component) {
     );
   }
 
+  const parent = byId.get(node.parentId);
+  const removedIndex = parent.childIds.indexOf(nodeId);
+  // deleteBlock's inverse deliberately does NOT re-add a pruned component import — if the
+  // removed subtree was the last usage of a component, its raw markup on reinsertion won't
+  // have a matching import either. Known v1 gap; round-tripping such a delete needs the
+  // reinserted raw markup's tag re-detected and its import re-added, which duplicates
+  // applyInsertNode's component-import logic against a raw blob. Out of scope for this slice.
+  //
+  // KNOWN WHITESPACE-FIDELITY GAP (documented, not fixed — out of scope for this slice, same as
+  // the import-pruning gap above): `inverse.component.node.markup` below is captured from
+  // `span[0]`/`span[1]` only — the node's OWN exact text, not the leading indentation/newline
+  // that the trim below (`start`..`span[0]`) is about to strip from the surrounding document.
+  // Re-inserting that raw markup via insertBlock therefore restores the right node at the right
+  // parent/index, but NOT the original line break + indentation around it — e.g. removing
+  // `\n  <p id="gone">b</p>` from a multi-line, indented `<main>` and reinserting via this
+  // inverse lands the reinserted `<p>` immediately after its sibling with no newline/indent in
+  // between (structurally correct, not byte-identical to the pre-delete source). Fixing this
+  // would mean capturing and re-splicing the stripped whitespace too, which `insertBlock`'s
+  // insertion-offset logic (anchored to sibling spans, not to "was there whitespace here
+  // before") doesn't currently support. Task 8's golden round-trip tests should account for this
+  // rather than assert byte-identical restoration.
+  const inverse = {
+    op: "insertBlock",
+    component: { path: file, parentId: node.parentId, index: removedIndex, node: { kind: "raw", markup: source.slice(span[0], span[1]) } },
+  };
+
   // Trim a single leading run of horizontal whitespace back to (but not past) a preceding
   // newline, then swallow that newline too — mirrors remove-style-property's cleanup so
   // removing a node doesn't leave a blank line in its place. Clamped to never cross back
-  // into the frontmatter delimiter's own newline (see frontmatterBodyEnd).
+  // into the frontmatter delimiter's own newline (see frontmatterBodyEnd). NOTE: this
+  // trimmed whitespace is NOT captured by `inverse` above — see the comment there for the
+  // resulting fidelity gap.
   let start = span[0];
   while (start > 0 && (source[start - 1] === " " || source[start - 1] === "\t")) start--;
   if (start > 0 && source[start - 1] === "\n") start--;
@@ -472,12 +550,12 @@ function applyRemoveNode(file, source, byId, rootId, component) {
   // list against the POST-removal template text.
   const removedComponentNames = collectComponentTags(byId, nodeId);
   if (removedComponentNames.length === 0) {
-    return { file, range: { start: 0, end: source.length }, replacement: withoutNode };
+    return { file, range: { start: 0, end: source.length }, replacement: withoutNode, inverse };
   }
 
   const fmMatch = withoutNode.match(/^(---\r?\n)([\s\S]*?)(\r?\n---)/);
   if (!fmMatch) {
-    return { file, range: { start: 0, end: source.length }, replacement: withoutNode };
+    return { file, range: { start: 0, end: source.length }, replacement: withoutNode, inverse };
   }
   const [whole, open, fmBody, close] = fmMatch;
   const fmStart = fmMatch.index;
@@ -487,7 +565,7 @@ function applyRemoveNode(file, source, byId, rootId, component) {
     newFmBody = pruneImportIfUnused(newFmBody, withoutNode.slice(fmStart + whole.length), name).source;
   }
   const rewritten = withoutNode.slice(0, fmBodyStart) + newFmBody + withoutNode.slice(fmBodyStart + fmBody.length);
-  return { file, range: { start: 0, end: source.length }, replacement: rewritten };
+  return { file, range: { start: 0, end: source.length }, replacement: rewritten, inverse };
 }
 
 export function collectComponentTags(byId, nodeId) {
@@ -503,6 +581,7 @@ export function collectComponentTags(byId, nodeId) {
 }
 
 function buildMarkup(nodeSpec) {
+  if (nodeSpec.kind === "raw") return nodeSpec.markup;
   if (nodeSpec.kind === "slot") {
     return nodeSpec.slotName ? `<slot name="${escapeAttr(nodeSpec.slotName)}" />` : `<slot />`;
   }
@@ -589,7 +668,7 @@ function applyInsertNode(file, source, byId, rootId, component) {
   if (typeof parentId !== "string" || typeof index !== "number" || !nodeSpec || typeof nodeSpec !== "object") {
     return refuse("invalid-input", "insert-node requires component.parentId, component.index, and component.node");
   }
-  if (!["element", "component", "slot"].includes(nodeSpec.kind)) {
+  if (!["element", "component", "slot", "raw"].includes(nodeSpec.kind)) {
     return refuse("invalid-input", `unsupported node.kind: ${nodeSpec.kind}`);
   }
   if ((nodeSpec.kind === "element" || nodeSpec.kind === "component") && typeof nodeSpec.tag !== "string") {
@@ -597,6 +676,9 @@ function applyInsertNode(file, source, byId, rootId, component) {
   }
   if (nodeSpec.kind === "component" && typeof nodeSpec.componentPath !== "string") {
     return refuse("invalid-input", "node.componentPath is required for component inserts");
+  }
+  if (nodeSpec.kind === "raw" && typeof nodeSpec.markup !== "string") {
+    return refuse("invalid-input", "node.markup is required for raw inserts");
   }
 
   const parent = byId.get(parentId);
@@ -629,7 +711,7 @@ function applyInsertNode(file, source, byId, rootId, component) {
   const withNode = source.slice(0, insertAt) + markup + source.slice(insertAt);
 
   if (nodeSpec.kind !== "component") {
-    return { file, range: { start: 0, end: source.length }, replacement: withNode };
+    return { file, range: { start: 0, end: source.length }, replacement: withNode, __insertAt: insertAt, __final: withNode };
   }
 
   // Component insert: also add (or reuse) its default import in the frontmatter.
@@ -637,13 +719,54 @@ function applyInsertNode(file, source, byId, rootId, component) {
   if (!fmMatch) {
     // No frontmatter at all yet — synthesize one carrying just the import.
     const importLine = `import ${nodeSpec.tag} from "${importSpecifier(file, nodeSpec.componentPath)}";\n`;
-    return { file, range: { start: 0, end: source.length }, replacement: `---\n${importLine}---\n${withNode}` };
+    const rewritten = `---\n${importLine}---\n${withNode}`;
+    return { file, range: { start: 0, end: source.length }, replacement: rewritten, __insertAt: insertAt + `---\n${importLine}---\n`.length, __final: rewritten };
   }
   const [, open, fmBody] = fmMatch;
   const fmBodyStart = fmMatch.index + open.length;
-  const { source: newFmBody } = ensureImport(fmBody, { localName: nodeSpec.tag, specifier: importSpecifier(file, nodeSpec.componentPath) });
+  const { source: newFmBody, added } = ensureImport(fmBody, { localName: nodeSpec.tag, specifier: importSpecifier(file, nodeSpec.componentPath) });
   const rewritten = withNode.slice(0, fmBodyStart) + newFmBody + withNode.slice(fmBodyStart + fmBody.length);
-  return { file, range: { start: 0, end: source.length }, replacement: rewritten };
+  const importShift = added ? newFmBody.length - fmBody.length : 0;
+  return { file, range: { start: 0, end: source.length }, replacement: rewritten, __insertAt: insertAt + importShift, __final: rewritten };
+}
+
+// After applyInsertNode builds the final source (`finalSource`), computes insertBlock's inverse
+// by re-parsing that final source fresh and locating the newly inserted node's POST-edit id —
+// found by matching `insertAtInFinalSource` (the insertion offset, corrected for any
+// frontmatter growth from a newly-added import) against `resolveAllSpans`' freshly resolved
+// span starts. Same "resolve identity via resolveAllSpans over the fresh parse, never via id
+// reuse" discipline as everywhere else in this file — the inserted node's `byId`-assigned id
+// from the ORIGINAL parse is meaningless post-edit (the tree changed), so its true id has to be
+// rediscovered the same lexical way every other span in this module is.
+async function computeInsertInverse(file, finalSource, insertAtInFinalSource) {
+  const resolved = await reresolveSpans(finalSource);
+  if (!resolved) return null;
+  for (const [id, span] of resolved.newSpans) {
+    if (span[0] === insertAtInFinalSource) {
+      return { op: "deleteBlock", component: { path: file, nodeId: id } };
+    }
+  }
+  return null;
+}
+
+// Shared by computeInsertInverse/computeMoveInverse: re-parses `finalSource` fresh and resolves
+// every node's span over it — the identity-rediscovery step both callers need (see their own
+// "resolve identity via resolveAllSpans over the fresh parse, never via id reuse" comments).
+// Returns `null` (a normal, expected outcome, not a bug) only when `resolveAllSpans` throws its
+// own documented `SpanResolutionError` — an unresolvable node in freshly-generated markup means
+// "give up, ship no inverse rather than a wrong one." Any OTHER exception is rethrown rather than
+// swallowed, matching every other `resolveAllSpans` call site in this file's fail-closed
+// discipline (see applyRemoveNode/applyInsertNode/applyMoveNode above).
+async function reresolveSpans(finalSource) {
+  const { ast } = await parse(finalSource, { position: true });
+  const { byId: newById, rootId: newRootId } = buildTemplateNodeIndex(ast, finalSource);
+  try {
+    const newSpans = resolveAllSpans(newById, newRootId, finalSource);
+    return { newById, newRootId, newSpans };
+  } catch (err) {
+    if (!(err instanceof SpanResolutionError)) throw err;
+    return null;
+  }
 }
 
 // True if `nodeId` is a descendant of `ancestorId`, walking `byId`'s `parentId` chain
@@ -684,7 +807,7 @@ function isDescendant(byId, ancestorId, nodeId) {
 // the very span being removed; the ancestor check earlier already rules out the structural
 // case that would cause this (moving into your own subtree), but it's guarded again below
 // as a fail-closed check rather than assumed.
-function applyMoveNode(file, source, byId, rootId, component) {
+async function applyMoveNode(file, source, byId, rootId, component) {
   const { nodeId, newParentId, newIndex } = component;
   if (typeof nodeId !== "string" || typeof newParentId !== "string" || typeof newIndex !== "number") {
     return refuse("invalid-input", "move-node requires component.nodeId, component.newParentId, and component.newIndex");
@@ -733,6 +856,19 @@ function applyMoveNode(file, source, byId, rootId, component) {
   // swallow that newline too, so the old location doesn't leave a blank line behind.
   // Clamped to never cross back into the frontmatter delimiter's own newline (see
   // frontmatterBodyEnd) — same corruption remove-node's trim guards against.
+  //
+  // KNOWN WHITESPACE-FIDELITY GAP (documented, not fixed — same class of gap as
+  // applyRemoveNode's inverse, see the comment above that function's own trim/`inverse`
+  // construction): `nodeText` (captured above, from `nodeSpan[0]`/`nodeSpan[1]`) is the node's
+  // OWN exact text only — it does NOT include the leading indentation/newline this trim is
+  // about to strip from the node's OLD location. moveBlock's own computed inverse is itself
+  // another `moveBlock` op (see below), which on re-invocation resolves its destination offset
+  // via the same `resolveInsertionOffset` sibling-anchored logic this call already used — that
+  // lands the node correctly (right parent, right index) but without reproducing the original
+  // line break + indentation around it, so a multi-line, indented move-then-move-back round trip
+  // is structurally correct, not necessarily byte-identical to the pre-move source. Task 8's
+  // golden round-trip tests should account for this rather than assert byte-identical
+  // restoration.
   let removeStart = nodeSpan[0];
   while (removeStart > 0 && (source[removeStart - 1] === " " || source[removeStart - 1] === "\t")) removeStart--;
   if (removeStart > 0 && source[removeStart - 1] === "\n") removeStart--;
@@ -743,10 +879,74 @@ function applyMoveNode(file, source, byId, rootId, component) {
     return refuse("invalid-input", "insertion point falls inside the node's own span being moved");
   }
 
-  const rewritten =
-    insertAt <= removeStart
-      ? source.slice(0, insertAt) + nodeText + source.slice(insertAt, removeStart) + source.slice(removeEnd)
-      : source.slice(0, removeStart) + source.slice(removeEnd, insertAt) + nodeText + source.slice(insertAt);
+  const movingBeforeRemoval = insertAt <= removeStart;
+  const rewritten = movingBeforeRemoval
+    ? source.slice(0, insertAt) + nodeText + source.slice(insertAt, removeStart) + source.slice(removeEnd)
+    : source.slice(0, removeStart) + source.slice(removeEnd, insertAt) + nodeText + source.slice(insertAt);
 
-  return { file, range: { start: 0, end: source.length }, replacement: rewritten };
+  // moveBlock's inverse moves the node back to its ORIGINAL parent/index. The moved node's own
+  // new (post-move) location in `rewritten` is exactly `insertAt` in the movingBeforeRemoval
+  // case (it's spliced in first, right where P1 ends) or `removeStart + (insertAt - removeEnd)`
+  // otherwise (P1 is source[0:removeStart], then the removeEnd..insertAt carry-over segment,
+  // THEN nodeText) — same two-case splice arithmetic `applyMoveNode`'s own doc comment above
+  // describes, just solved for "where does this offset land" instead of "how do I build the
+  // string". The original parent's own span-start offset maps through the identical two cases:
+  // unchanged if it precedes the insertion point, shifted forward by nodeText's length if the
+  // splice's insertion happens before it (only possible in the movingBeforeRemoval case, since
+  // a parent always starts strictly before its own child's — and therefore removeStart's —
+  // offset, so it can never itself land inside the removed range or after removeEnd).
+  const originalParent = byId.get(node.parentId);
+  const originalIndex = originalParent.childIds.indexOf(nodeId);
+  const movedNodeOffsetInFinal = movingBeforeRemoval ? insertAt : removeStart + (insertAt - removeEnd);
+  let originParentOffsetInFinal; // null sentinel means "the fragment root — reuse newRootId directly"
+  if (originalParent.id === rootId) {
+    // The fragment root has no lexical span to re-locate (resolveAllSpans never spans it) but
+    // its id is always deterministically the first one assigned by buildTemplateNodeIndex's
+    // counter (i.e. always "n0"), so a fresh re-parse's rootId is directly reusable — no
+    // offset-matching needed for the parent side, only for the moved node itself.
+    originParentOffsetInFinal = null;
+  } else {
+    const originalParentSpan = spans.get(node.parentId);
+    originParentOffsetInFinal = originalParentSpan
+      ? (movingBeforeRemoval
+          ? (originalParentSpan[0] < insertAt ? originalParentSpan[0] : originalParentSpan[0] + nodeText.length)
+          : originalParentSpan[0]) // always < removeStart <= insertAt in this branch — unaffected
+      : undefined; // parent's own span couldn't be resolved — no inverse rather than a guess
+  }
+  const inverse =
+    originParentOffsetInFinal === undefined
+      ? null
+      : await computeMoveInverse(file, rewritten, movedNodeOffsetInFinal, originParentOffsetInFinal, originalIndex);
+
+  // Same "refuse the whole op rather than ship a no-inverse success" discipline as insertBlock
+  // above: a null inverse here means either the original parent's own span couldn't be
+  // re-located (originParentOffsetInFinal === undefined) or the post-move re-parse's span
+  // resolution failed (computeMoveInverse) — either way, applying the move without a working
+  // undo would be a silently-broken history entry from the app's perspective.
+  if (!inverse) {
+    return refuse("internal-error", "could not compute moveBlock's inverse (span resolution failed on the post-move re-parse) — refusing rather than applying an edit with no undo");
+  }
+
+  return { file, range: { start: 0, end: source.length }, replacement: rewritten, inverse };
+}
+
+// After applyMoveNode builds the final source (`finalSource`), computes moveBlock's inverse by
+// re-parsing that final source fresh and locating (a) the moved node's own POST-move id, via
+// `movedNodeOffsetInFinal`, and (b) the ORIGINAL parent's POST-move id, via
+// `origParentOffsetInFinal` — both matched against resolveAllSpans' freshly resolved span
+// starts, same "resolve identity via resolveAllSpans over the fresh parse, never via id reuse"
+// discipline as `computeInsertInverse`. `origParentOffsetInFinal === null` means the original
+// parent was the fragment root, whose id is reused directly (see the call site's comment).
+async function computeMoveInverse(file, finalSource, movedNodeOffsetInFinal, origParentOffsetInFinal, originalIndex) {
+  const resolved = await reresolveSpans(finalSource);
+  if (!resolved) return null;
+  const { newRootId, newSpans } = resolved;
+  let newNodeId = null;
+  let newParentId = origParentOffsetInFinal === null ? newRootId : null;
+  for (const [id, span] of newSpans) {
+    if (span[0] === movedNodeOffsetInFinal) newNodeId = id;
+    if (origParentOffsetInFinal !== null && span[0] === origParentOffsetInFinal) newParentId = id;
+  }
+  if (newNodeId == null || newParentId == null) return null;
+  return { op: "moveBlock", component: { path: file, nodeId: newNodeId, newParentId, newIndex: originalIndex } };
 }

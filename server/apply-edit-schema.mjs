@@ -56,6 +56,12 @@ export const editOps = [
   "move-node",
   "remove-node",
   "set-attr",
+  "insertBlock",
+  "moveBlock",
+  "deleteBlock",
+  "setProp",
+  "editText",
+  "setDesignToken",
   "set-props-interface",
   "set-script-zone",
   "extract-component",
@@ -72,8 +78,16 @@ export const COMPONENT_STYLE_OPS = new Set([
 ]);
 
 /** The subset of `editOps` that operate on a component's template structure (DOM nodes)
- *  via `component` rather than on a page element via `selector`. */
-export const COMPONENT_STRUCTURE_OPS = new Set(["insert-node", "move-node", "remove-node", "set-attr"]);
+ *  via `component` rather than on a page element via `selector`. `insertBlock`/`moveBlock`/
+ *  `deleteBlock`/`setProp` are protocol-facing aliases for the identical insert-node/move-node/
+ *  remove-node/set-attr dispatch (see `resolveComponentStructure` in
+ *  component-structure-edit.mjs) — the WYSIWYG ops-protocol vocabulary (spec
+ *  2026-08-03-modern-wysiwyg-editor-design.md §3.2) targeting the exact same span-resolution
+ *  machinery, now with a computed inverse attached. */
+export const COMPONENT_STRUCTURE_OPS = new Set([
+  "insert-node", "move-node", "remove-node", "set-attr",
+  "insertBlock", "moveBlock", "deleteBlock", "setProp",
+]);
 
 /** The subset of `editOps` that codegen/replace a component's frontmatter or client-script
  *  zone via `component` — the Props form and STTextView code-pane saves. */
@@ -87,13 +101,29 @@ export const COMPONENT_FRONTMATTER_OPS = new Set(["set-props-interface", "set-sc
  *  `resolution.extract` branch). */
 export const COMPONENT_EXTRACT_OPS = new Set(["extract-component"]);
 
-/** Union of style, structure, frontmatter, and extract component ops — used by the dispatcher's
- *  shared checks (payload presence, baseVersion re-check, model refetch). */
+/** The subset of `editOps` that replaces an element's inner content with re-serialized
+ *  rich-text runs via `component` — currently just `editText` (the WYSIWYG block editor's
+ *  in-canvas text editing, see `text-run-edit.mjs`). Its own Set (rather than folding into
+ *  COMPONENT_STRUCTURE_OPS) because it's dispatched to a different resolver module, same
+ *  reasoning as COMPONENT_EXTRACT_OPS above. */
+export const COMPONENT_TEXT_OPS = new Set(["editText"]);
+
+/** `setDesignToken` alone — it edits the theme's global stylesheet via `component`, not a
+ *  specific .astro component's template/style/frontmatter, so it's deliberately its own Set
+ *  rather than folded into COMPONENT_OPS below (it gets no post-apply `model` refetch — there's
+ *  no single component to refetch a model for). Kept as a named Set (matching every sibling op
+ *  group's dispatch-by-Set pattern above) rather than a bare `edit.op === "setDesignToken"`
+ *  string check in patcher.mjs, purely for consistency — no behavior change. */
+export const DESIGN_TOKEN_OPS = new Set(["setDesignToken"]);
+
+/** Union of style, structure, frontmatter, extract, and text-run component ops — used by the
+ *  dispatcher's shared checks (payload presence, baseVersion re-check, model refetch). */
 export const COMPONENT_OPS = new Set([
   ...COMPONENT_STYLE_OPS,
   ...COMPONENT_STRUCTURE_OPS,
   ...COMPONENT_FRONTMATTER_OPS,
   ...COMPONENT_EXTRACT_OPS,
+  ...COMPONENT_TEXT_OPS,
 ]);
 
 /** Structured payload for the four component-style ops. Identifies the target rule by its exact
@@ -122,13 +152,25 @@ export const componentEditSchema = z.object({
   newIndex: z.number().int().optional().describe("Destination child index for move-node"),
   node: z
     .object({
-      kind: z.enum(["element", "component", "slot"]),
-      tag: z.string().optional().describe("HTML tag name (element) or component name (component); omitted for slot"),
+      kind: z.enum(["element", "component", "slot", "raw"]),
+      tag: z.string().optional().describe("HTML tag name (element) or component name (component); omitted for slot/raw"),
       componentPath: z.string().optional().describe("Project-relative .astro path to import, required when kind=component"),
       slotName: z.string().optional().describe("Named slot, for kind=slot; omitted means the default slot"),
+      markup: z.string().optional().describe("Verbatim source markup to splice in as-is, required when kind=raw — used by deleteBlock's computed inverse to reconstruct an exact removed subtree"),
     })
     .optional()
-    .describe("New node spec for insert-node"),
+    .describe("New node spec for insert-node/insertBlock"),
+  manifestBlock: z
+    .string()
+    .optional()
+    .describe("Owner-facing block-manifest name for insertBlock (e.g. \"Business Card\") — resolved server-side to {tag, componentPath} via blocks.manifest.json instead of the caller supplying them directly. Mutually exclusive with node.tag/node.componentPath."),
+  textNodeId: z.string().optional().describe("Target node id for editText — must be an element/component node (get_page_model's block-annotated tree)"),
+  runs: z
+    .array(z.object({ text: z.string(), marks: z.array(z.enum(["strong", "em", "code"])).default([]), href: z.string().optional() }))
+    .optional()
+    .describe("Replacement rich-text runs for editText — see text-run-edit.mjs"),
+  token: z.string().optional().describe("CSS custom-property name for setDesignToken, e.g. --color-primary (no --var()/calc() wrapping)"),
+  tokenValue: z.string().optional().describe("New value for setDesignToken"),
   props: z
     .array(
       z.object({
@@ -174,12 +216,12 @@ export const applyEditInputShape = {
   component: componentEditSchema
     .optional()
     .describe(
-      "Structured component-style edit payload for set-style-property/remove-style-property/add-style-rule/set-rule-selector",
+      "Structured payload for every op that targets a component/page template or its scoped style rather than a page element via `selector`: set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr and their WYSIWYG block-editor aliases insertBlock/moveBlock/deleteBlock/setProp (component-structure ops — see node/parentId/index/nodeId/newParentId/newIndex/name/value/manifestBlock), editText (rich-text run editing via textNodeId/runs), setDesignToken (global CSS custom-property editing via token/tokenValue), set-props-interface/set-script-zone (component-frontmatter ops), and extract-component (nodeId + newName)",
     ),
   op: z
     .enum(editOps)
     .describe(
-      "Edit operation: replace-text (innerText), replace-attr (value is {name, value}), replace-image-src (value is {filename, mimeType, dataURL}), edit-style (value is {property, value}; merges a rule into the owning component's scoped <style>), apply-instruction (reserved: sent only by the Anglesite-app Foundation Models chat path; always returns edit-failed/needs-agent — do not use from external callers), set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr (component-structure ops), set-props-interface/set-script-zone (component-frontmatter ops), extract-component (nodeId + newName — writes a new src/components/<newName>.astro from the selected subtree, hoists obvious literal props, and replaces the selection in the source file with an instance + import — see componentEditSchema)",
+      "Edit operation: replace-text (innerText), replace-attr (value is {name, value}), replace-image-src (value is {filename, mimeType, dataURL}), edit-style (value is {property, value}; merges a rule into the owning component's scoped <style>), apply-instruction (reserved: sent only by the Anglesite-app Foundation Models chat path; always returns edit-failed/needs-agent — do not use from external callers), set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr (component-structure ops), set-props-interface/set-script-zone (component-frontmatter ops), extract-component (nodeId + newName — writes a new src/components/<newName>.astro from the selected subtree, hoists obvious literal props, and replaces the selection in the source file with an instance + import — see componentEditSchema), and the WYSIWYG block-editor ops (same component-structure/text/style-token machinery, protocol-facing vocabulary, each returning a computed `inverse` for host-side undo): insertBlock (component.node or component.manifestBlock + parentId/index — insert a new element/component/slot/raw-markup node, or a blocks.manifest.json-registered block, as a child), moveBlock (component.nodeId + newParentId/newIndex — reparent/reorder an existing node), deleteBlock (component.nodeId — remove a node and its subtree), setProp (component.nodeId/name/value — set or, with value null, remove an attribute), editText (component.textNodeId/runs — replace an element/component/slot's inner content with re-serialized rich-text runs), setDesignToken (component.token/tokenValue — edit a global CSS custom property)",
     ),
   value: z
     .unknown()
@@ -212,13 +254,18 @@ export function createEditFailedContent(id, reason, detail) {
  *  the app never needs a second round-trip to `get_component_model` after a write. `newFile` is
  *  additive (extract-component only): the project-relative path of the brand-new component file
  *  the op created, alongside `file`/`range` which still describe the SOURCE file's own edit —
- *  every other op's reply shape is unchanged by this field's addition. */
-export function createEditAppliedContent(id, file, range, commit, result, model, newFile) {
+ *  every other op's reply shape is unchanged by this field's addition. `inverse` is the
+ *  computed `{op, component}` counter-edit some component-structure ops (insertBlock/moveBlock/
+ *  deleteBlock/setProp) attach — `component.baseVersion` is stamped with the POST-write content
+ *  hash by the dispatcher (it can't be known until the write actually happens), so this field is
+ *  ready to send straight back through `apply_edit` unmodified for undo. */
+export function createEditAppliedContent(id, file, range, commit, result, model, newFile, inverse) {
   const body = { type: "anglesite:edit-applied", id, file, range };
   if (commit !== undefined) body.commit = commit;
   if (result !== undefined) body.result = result;
   if (model !== undefined) body.model = model;
   if (newFile !== undefined) body.newFile = newFile;
+  if (inverse !== undefined) body.inverse = inverse;
   return { type: "text", text: JSON.stringify(body) };
 }
 

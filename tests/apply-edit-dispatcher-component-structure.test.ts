@@ -70,6 +70,24 @@ describe("applyEdit — component-structure ops", () => {
     expect(body.reason).toBe("stale");
   });
 
+  it("stamps inverse.component.baseVersion with the post-write content hash", async () => {
+    const baseVersion = fileVersion(CARD);
+    const { byId, rootId } = await nodeIndex(CARD);
+    const article = byId.get(byId.get(rootId).childIds[0]);
+
+    const response = await applyEdit(tmpDir, {
+      id: "1",
+      path: "src/components/Card.astro",
+      op: "setProp",
+      component: { path: "src/components/Card.astro", baseVersion, nodeId: article.id, name: "title", value: "new" },
+    });
+    expect(response.isError).toBeFalsy();
+    const body = parseContent(response);
+    const onDisk = readFileSync(join(tmpDir, "src", "components", "Card.astro"), "utf-8");
+    expect(body.inverse).toBeDefined();
+    expect(body.inverse.component.baseVersion).toBe(fileVersion(onDisk));
+  });
+
   it("re-checks staleness after the resolver's async gap, refusing a concurrent write race", async () => {
     const baseVersion = fileVersion(CARD);
     const { byId, rootId } = await nodeIndex(CARD);

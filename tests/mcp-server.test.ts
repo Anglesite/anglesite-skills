@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "nod
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
+import { fileVersion as fileVersionOf } from "../server/file-version.mjs";
 
 const SERVER_PATH = resolve(__dirname, "..", "server", "index.mjs");
 
@@ -185,6 +186,7 @@ describe("MCP annotation server", () => {
         "create_page",
         "create_post",
         "get_component_model",
+        "get_page_model",
         "list_annotations",
         "list_content",
         "resolve_annotation",
@@ -550,6 +552,50 @@ describe("MCP annotation server", () => {
     }
   });
 
+  it("get_page_model returns a block-annotated tree over stdio", async () => {
+    mkdirSync(join(tmpDir, "src", "pages"), { recursive: true });
+    mkdirSync(join(tmpDir, "src", "components"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "blocks.manifest.json"),
+      JSON.stringify({
+        schemaVersion: "anglesite-block-manifest/1",
+        modules: [{ path: "src/components/Hcard.astro", export: "Hcard", name: "Business Card" }],
+      }),
+    );
+    writeFileSync(join(tmpDir, "src", "components", "Hcard.astro"), `---\n---\n<div>card</div>\n`);
+    writeFileSync(
+      join(tmpDir, "src", "pages", "index.astro"),
+      `---\nimport Hcard from "../components/Hcard.astro";\n---\n<Hcard />\n`,
+    );
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const response = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "get_page_model", arguments: { path: "src/pages/index.astro" } },
+      });
+      const result = response.result as { content: { text: string }[]; isError?: boolean };
+      expect(result.isError).toBeFalsy();
+      const model = JSON.parse(result.content[0].text);
+      expect(model.tree.children[0].block.name).toBe("Business Card");
+    } finally {
+      proc.kill();
+    }
+  });
+
   it("apply_edit set-style-property round trip returns a piggybacked model", async () => {
     mkdirSync(join(tmpDir, "src", "components"), { recursive: true });
     writeFileSync(
@@ -675,6 +721,201 @@ describe("MCP annotation server", () => {
       const body = JSON.parse(editResult.content[0].text);
       expect(body.type).toBe("anglesite:edit-applied");
       expect(body.model.template.children.some((c: { tag?: string }) => c.tag === "footer")).toBe(true);
+    } finally {
+      proc.kill();
+    }
+  });
+
+  it("editText replaces an element's inner content with re-serialized runs over stdio", async () => {
+    mkdirSync(join(tmpDir, "src", "pages"), { recursive: true });
+    const source = `---\n---\n<p id="t">Hello world</p>\n`;
+    writeFileSync(join(tmpDir, "src", "pages", "index.astro"), source);
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const modelResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "get_page_model", arguments: { path: "src/pages/index.astro" } },
+      });
+      const modelResult = modelResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(modelResult.isError).toBeFalsy();
+      const model = JSON.parse(modelResult.content[0].text);
+      const p = model.tree.children.find((n: { tag?: string }) => n.tag === "p");
+
+      const editResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "1",
+            path: "src/pages/index.astro",
+            op: "editText",
+            component: {
+              path: "src/pages/index.astro",
+              baseVersion: model.version,
+              textNodeId: p.id,
+              runs: [{ text: "Bye", marks: ["strong"] }],
+            },
+          },
+        },
+      });
+      const editResult = editResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(editResult.isError).toBeFalsy();
+      const body = JSON.parse(editResult.content[0].text);
+      expect(body.inverse.op).toBe("editText");
+      const written = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
+      expect(written).toContain("<strong>Bye</strong>");
+    } finally {
+      proc.kill();
+    }
+  });
+
+  it("setDesignToken patches global.css's :root and returns a stamped inverse over stdio", async () => {
+    mkdirSync(join(tmpDir, "src", "styles"), { recursive: true });
+    const css = `:root {\n  --color-primary: #2563eb;\n}\n`;
+    writeFileSync(join(tmpDir, "src", "styles", "global.css"), css);
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const editResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "1",
+            path: "src/styles/global.css",
+            op: "setDesignToken",
+            component: {
+              path: "src/styles/global.css",
+              baseVersion: fileVersionOf(css),
+              token: "--color-primary",
+              tokenValue: "#111111",
+            },
+          },
+        },
+      });
+      const editResult = editResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(editResult.isError).toBeFalsy();
+      const payload = JSON.parse(editResult.content[0].text);
+      expect(payload.inverse.component.tokenValue).toBe("#2563eb");
+      const written = readFileSync(join(tmpDir, "src", "styles", "global.css"), "utf-8");
+      expect(written).toContain("--color-primary: #111111");
+    } finally {
+      proc.kill();
+    }
+  });
+
+  // Final review — Important: the golden round-trip suite (tests/page-ops-roundtrip.test.ts)
+  // calls resolvers directly and hand-rebuilds the inverse edit's baseVersion rather than
+  // exercising the REAL apply_edit dispatcher-stamped `inverse` object end to end. This is the
+  // one test that takes an edit-applied response's `inverse` VERBATIM — no rebuilding — and
+  // sends it straight back through apply_edit as a real MCP tool call, proving the promise in
+  // createEditAppliedContent's doc comment ("ready to send straight back through apply_edit
+  // unmodified for undo") actually holds for insertBlock, the most structurally complex op.
+  it("insertBlock's stamped inverse, sent back through apply_edit verbatim, restores the exact original bytes", async () => {
+    mkdirSync(join(tmpDir, "src", "pages"), { recursive: true });
+    const source = `---\n---\n<main><p id="keep">a</p></main>\n`;
+    writeFileSync(join(tmpDir, "src", "pages", "index.astro"), source);
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const modelResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "get_page_model", arguments: { path: "src/pages/index.astro" } },
+      });
+      const modelResult = modelResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(modelResult.isError).toBeFalsy();
+      const model = JSON.parse(modelResult.content[0].text);
+      const main = model.tree.children.find((n: { tag?: string }) => n.tag === "main");
+
+      const insertResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "insert-1",
+            path: "src/pages/index.astro",
+            op: "insertBlock",
+            component: {
+              path: "src/pages/index.astro",
+              baseVersion: model.version,
+              parentId: main.id,
+              index: 1,
+              node: { kind: "element", tag: "footer" },
+            },
+          },
+        },
+      });
+      const insertResult = insertResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(insertResult.isError).toBeFalsy();
+      const insertBody = JSON.parse(insertResult.content[0].text);
+      expect(insertBody.inverse.op).toBe("deleteBlock");
+      const afterInsert = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
+      expect(afterInsert).toContain("<footer>");
+      expect(afterInsert).not.toBe(source);
+
+      // Send the dispatcher-stamped inverse straight back — VERBATIM, no rebuilding.
+      const undoResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "undo-1",
+            path: "src/pages/index.astro",
+            op: insertBody.inverse.op,
+            component: insertBody.inverse.component,
+          },
+        },
+      });
+      const undoResult = undoResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(undoResult.isError).toBeFalsy();
+      const restored = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
+      expect(restored).toBe(source);
     } finally {
       proc.kill();
     }
