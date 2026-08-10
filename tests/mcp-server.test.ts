@@ -832,4 +832,92 @@ describe("MCP annotation server", () => {
       proc.kill();
     }
   });
+
+  // Final review — Important: the golden round-trip suite (tests/page-ops-roundtrip.test.ts)
+  // calls resolvers directly and hand-rebuilds the inverse edit's baseVersion rather than
+  // exercising the REAL apply_edit dispatcher-stamped `inverse` object end to end. This is the
+  // one test that takes an edit-applied response's `inverse` VERBATIM — no rebuilding — and
+  // sends it straight back through apply_edit as a real MCP tool call, proving the promise in
+  // createEditAppliedContent's doc comment ("ready to send straight back through apply_edit
+  // unmodified for undo") actually holds for insertBlock, the most structurally complex op.
+  it("insertBlock's stamped inverse, sent back through apply_edit verbatim, restores the exact original bytes", async () => {
+    mkdirSync(join(tmpDir, "src", "pages"), { recursive: true });
+    const source = `---\n---\n<main><p id="keep">a</p></main>\n`;
+    writeFileSync(join(tmpDir, "src", "pages", "index.astro"), source);
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const modelResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "get_page_model", arguments: { path: "src/pages/index.astro" } },
+      });
+      const modelResult = modelResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(modelResult.isError).toBeFalsy();
+      const model = JSON.parse(modelResult.content[0].text);
+      const main = model.tree.children.find((n: { tag?: string }) => n.tag === "main");
+
+      const insertResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "insert-1",
+            path: "src/pages/index.astro",
+            op: "insertBlock",
+            component: {
+              path: "src/pages/index.astro",
+              baseVersion: model.version,
+              parentId: main.id,
+              index: 1,
+              node: { kind: "element", tag: "footer" },
+            },
+          },
+        },
+      });
+      const insertResult = insertResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(insertResult.isError).toBeFalsy();
+      const insertBody = JSON.parse(insertResult.content[0].text);
+      expect(insertBody.inverse.op).toBe("deleteBlock");
+      const afterInsert = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
+      expect(afterInsert).toContain("<footer>");
+      expect(afterInsert).not.toBe(source);
+
+      // Send the dispatcher-stamped inverse straight back — VERBATIM, no rebuilding.
+      const undoResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "undo-1",
+            path: "src/pages/index.astro",
+            op: insertBody.inverse.op,
+            component: insertBody.inverse.component,
+          },
+        },
+      });
+      const undoResult = undoResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(undoResult.isError).toBeFalsy();
+      const restored = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
+      expect(restored).toBe(source);
+    } finally {
+      proc.kill();
+    }
+  });
 });
