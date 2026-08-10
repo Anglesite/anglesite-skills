@@ -20,6 +20,15 @@ async function nodeIndex(source) {
   return buildTemplateNodeIndex(ast, source);
 }
 
+// Shared by the inverse-op tests below: parses `source` directly into a byId/rootId index
+// without touching disk — the tests that need this only care about node identity/shape, not
+// about resolveComponentStructure's own file-loading path (that's covered separately by the
+// baseVersion/stale/read-failed tests elsewhere in this file).
+async function indexSource(source) {
+  const { ast } = await parse(source, { position: true });
+  return buildTemplateNodeIndex(ast, source);
+}
+
 describe("resolveComponentStructure — set-attr", () => {
   let tmpDir;
 
@@ -748,5 +757,122 @@ describe("resolveComponentStructure — move-node", () => {
 
     const { ast } = await parse(next, { position: true });
     expect(ast).toBeDefined();
+  });
+});
+
+describe("resolveComponentStructure — invertible ops (insertBlock/moveBlock/deleteBlock/setProp)", () => {
+  let tmpDir;
+  let projectRoot;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "anglesite-cse6-"));
+    projectRoot = tmpDir;
+    mkdirSync(join(projectRoot, "src", "pages"), { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function writePage(source) {
+    writeFileSync(join(projectRoot, "src", "pages", "index.astro"), source);
+  }
+
+  it("setProp's inverse restores the previous attribute value", async () => {
+    const source = `---\n---\n<div id="a" title="old">x</div>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const divId = [...byId.values()].find((n) => n.tag === "div").id;
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "setProp",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), nodeId: divId, name: "title", value: "new" },
+    });
+    expect(result.inverse).toEqual({
+      op: "setProp",
+      component: { path: "src/pages/index.astro", nodeId: divId, name: "title", value: "old" },
+    });
+  });
+
+  it("setProp's inverse removes an attribute that didn't exist before", async () => {
+    const source = `---\n---\n<div id="a">x</div>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const divId = [...byId.values()].find((n) => n.tag === "div").id;
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "setProp",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), nodeId: divId, name: "title", value: "new" },
+    });
+    expect(result.inverse.component.value).toBeNull();
+  });
+
+  it("deleteBlock's inverse is a raw insertBlock reconstructing the exact removed markup", async () => {
+    const source = `---\n---\n<main><p id="keep">a</p><p id="gone">b</p></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const main = [...byId.values()].find((n) => n.tag === "main");
+    const gone = [...byId.values()].find((n) => n.tag === "p" && n.attrs.some((a) => a.name === "id" && a.value === "gone"));
+    const goneIndex = main.childIds.indexOf(gone.id);
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "deleteBlock",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), nodeId: gone.id },
+    });
+    expect(result.inverse.op).toBe("insertBlock");
+    expect(result.inverse.component.parentId).toBe(main.id);
+    expect(result.inverse.component.index).toBe(goneIndex);
+    expect(result.inverse.component.node).toEqual({ kind: "raw", markup: `<p id="gone">b</p>` });
+  });
+
+  it("insertBlock's inverse is a deleteBlock targeting the newly created node's post-edit id", async () => {
+    const source = `---\n---\n<main></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const main = [...byId.values()].find((n) => n.tag === "main");
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "insertBlock",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), parentId: main.id, index: 0, node: { kind: "element", tag: "p" } },
+    });
+    expect(result.inverse.op).toBe("deleteBlock");
+    // Re-parse the RESULT and confirm the inverse's nodeId actually resolves to the inserted <p>.
+    const rewritten = result.replacement; // whole-file replacement per the {start:0,end:len} range
+    const { byId: newById } = await indexSource(rewritten);
+    const target = newById.get(result.inverse.component.nodeId);
+    expect(target?.tag).toBe("p");
+  });
+
+  it("moveBlock's inverse moves the node back to its original parent/index", async () => {
+    const source = `---\n---\n<main><section id="from"><p id="m">x</p></section><section id="to"></section></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const p = [...byId.values()].find((n) => n.attrs.some((a) => a.name === "id" && a.value === "m"));
+    const to = [...byId.values()].find((n) => n.attrs.some((a) => a.name === "id" && a.value === "to"));
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "moveBlock",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), nodeId: p.id, newParentId: to.id, newIndex: 0 },
+    });
+    const { byId: newById } = await indexSource(result.replacement);
+    const movedBack = newById.get(result.inverse.component.nodeId);
+    expect(movedBack?.attrs.some((a) => a.name === "id" && a.value === "m")).toBe(true);
+    const newFromParent = [...newById.values()].find((n) => n.attrs.some((a) => a.name === "id" && a.value === "from"));
+    expect(result.inverse.component.newParentId).toBe(newFromParent.id);
+    expect(result.inverse.component.newIndex).toBe(0);
+  });
+
+  it("insertBlock resolves manifestBlock to the registered component's tag/path", async () => {
+    writeFileSync(join(projectRoot, "blocks.manifest.json"), JSON.stringify({
+      schemaVersion: "anglesite-block-manifest/1",
+      modules: [{ path: "src/components/Testimonial.astro", export: "Testimonial", name: "Testimonial" }],
+    }));
+    mkdirSync(join(projectRoot, "src", "components"), { recursive: true });
+    writeFileSync(join(projectRoot, "src", "components", "Testimonial.astro"), `---\n---\n<blockquote>Great!</blockquote>\n`);
+    const source = `---\n---\n<main></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const main = [...byId.values()].find((n) => n.tag === "main");
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "insertBlock",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), parentId: main.id, index: 0, manifestBlock: "Testimonial" },
+    });
+    expect(result.replacement).toContain("<Testimonial");
+    expect(result.replacement).toContain(`import Testimonial from`);
   });
 });

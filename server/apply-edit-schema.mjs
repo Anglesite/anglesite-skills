@@ -56,6 +56,12 @@ export const editOps = [
   "move-node",
   "remove-node",
   "set-attr",
+  "insertBlock",
+  "moveBlock",
+  "deleteBlock",
+  "setProp",
+  "editText",
+  "setDesignToken",
   "set-props-interface",
   "set-script-zone",
   "extract-component",
@@ -72,8 +78,16 @@ export const COMPONENT_STYLE_OPS = new Set([
 ]);
 
 /** The subset of `editOps` that operate on a component's template structure (DOM nodes)
- *  via `component` rather than on a page element via `selector`. */
-export const COMPONENT_STRUCTURE_OPS = new Set(["insert-node", "move-node", "remove-node", "set-attr"]);
+ *  via `component` rather than on a page element via `selector`. `insertBlock`/`moveBlock`/
+ *  `deleteBlock`/`setProp` are protocol-facing aliases for the identical insert-node/move-node/
+ *  remove-node/set-attr dispatch (see `resolveComponentStructure` in
+ *  component-structure-edit.mjs) — the WYSIWYG ops-protocol vocabulary (spec
+ *  2026-08-03-modern-wysiwyg-editor-design.md §3.2) targeting the exact same span-resolution
+ *  machinery, now with a computed inverse attached. */
+export const COMPONENT_STRUCTURE_OPS = new Set([
+  "insert-node", "move-node", "remove-node", "set-attr",
+  "insertBlock", "moveBlock", "deleteBlock", "setProp",
+]);
 
 /** The subset of `editOps` that codegen/replace a component's frontmatter or client-script
  *  zone via `component` — the Props form and STTextView code-pane saves. */
@@ -122,13 +136,25 @@ export const componentEditSchema = z.object({
   newIndex: z.number().int().optional().describe("Destination child index for move-node"),
   node: z
     .object({
-      kind: z.enum(["element", "component", "slot"]),
-      tag: z.string().optional().describe("HTML tag name (element) or component name (component); omitted for slot"),
+      kind: z.enum(["element", "component", "slot", "raw"]),
+      tag: z.string().optional().describe("HTML tag name (element) or component name (component); omitted for slot/raw"),
       componentPath: z.string().optional().describe("Project-relative .astro path to import, required when kind=component"),
       slotName: z.string().optional().describe("Named slot, for kind=slot; omitted means the default slot"),
+      markup: z.string().optional().describe("Verbatim source markup to splice in as-is, required when kind=raw — used by deleteBlock's computed inverse to reconstruct an exact removed subtree"),
     })
     .optional()
-    .describe("New node spec for insert-node"),
+    .describe("New node spec for insert-node/insertBlock"),
+  manifestBlock: z
+    .string()
+    .optional()
+    .describe("Owner-facing block-manifest name for insertBlock (e.g. \"Business Card\") — resolved server-side to {tag, componentPath} via blocks.manifest.json instead of the caller supplying them directly. Mutually exclusive with node.tag/node.componentPath."),
+  textNodeId: z.string().optional().describe("Target node id for editText — must be an element/component node (get_page_model's block-annotated tree)"),
+  runs: z
+    .array(z.object({ text: z.string(), marks: z.array(z.enum(["strong", "em", "code"])).default([]), href: z.string().optional() }))
+    .optional()
+    .describe("Replacement rich-text runs for editText — see text-run-edit.mjs"),
+  token: z.string().optional().describe("CSS custom-property name for setDesignToken, e.g. --color-primary (no --var()/calc() wrapping)"),
+  tokenValue: z.string().optional().describe("New value for setDesignToken"),
   props: z
     .array(
       z.object({
