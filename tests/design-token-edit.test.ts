@@ -45,4 +45,31 @@ describe("resolveDesignToken", () => {
     expect(result.refused).toBe(true);
     expect(result.reason).toBe("no-match");
   });
+
+  it("refuses a path other than src/styles/global.css rather than inferring one", async () => {
+    const result = await resolveDesignToken(projectRoot, {
+      op: "setDesignToken",
+      component: { path: "src/styles/other.css", baseVersion: fileVersion(GLOBAL_CSS), token: "--color-primary", tokenValue: "#111111" },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("invalid-input");
+  });
+
+  it("refuses a token that doesn't look like a CSS custom-property name", async () => {
+    const result = await resolveDesignToken(projectRoot, {
+      op: "setDesignToken",
+      component: { path: "src/styles/global.css", baseVersion: fileVersion(GLOBAL_CSS), token: "color-primary", tokenValue: "#111111" },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("invalid-input");
+  });
+
+  it("refuses a stale baseVersion rather than resolving against a changed file", async () => {
+    const result = await resolveDesignToken(projectRoot, {
+      op: "setDesignToken",
+      component: { path: "src/styles/global.css", baseVersion: "sha256:000000000000", token: "--color-primary", tokenValue: "#111111" },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("stale");
+  });
 });

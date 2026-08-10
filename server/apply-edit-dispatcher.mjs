@@ -338,13 +338,20 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     return failed(edit.id, "write-failed", `read ${file}: ${err.message}`);
   }
 
-  // Component ops resolve via an async parser (component-style-edit.mjs's /
-  // component-structure-edit.mjs's / text-run-edit.mjs's `await parse(...)`), which opens a real yield point
-  // between that resolver's own baseVersion check and this second, independent read. A
-  // concurrent edit landing in that window would otherwise splice this call's now-stale
-  // byte offsets into the other call's already-written content — re-validate the hash
-  // against this fresh read, immediately before splicing, to close the gap.
-  if (COMPONENT_OPS.has(edit.op) && fileVersion(source) !== edit.component.baseVersion) {
+  // This `source` read is a second, independent read from whatever the resolver itself read to
+  // compute `range`/`replacement` — the two are separated by at least one microtask tick (the
+  // `await resolveEdit(...)` above), which is a real gap a concurrent write can land in even
+  // when the resolver's own internal work is fully synchronous (e.g. setDesignToken's css-tree
+  // parse — no `await` inside it doesn't mean no yield point *around* it: `await`ing a resolved
+  // promise still suspends this function back to its caller for one microtask turn). Component
+  // ops (component-style-edit.mjs's / component-structure-edit.mjs's / text-run-edit.mjs's own
+  // `await parse(...)`) have an additional, longer yield point inside the resolver itself, but
+  // that's not what makes this check necessary — the outer gap alone is enough. Gate on carrying
+  // a `component.baseVersion` at all (not just `COMPONENT_OPS` membership) so any current or
+  // future resolver that stakes a claim on a specific file version — component ops today,
+  // setDesignToken since it targets global.css via the same `component` shape — gets the same
+  // re-validation against this fresh read, immediately before splicing, closing the gap.
+  if (edit.component?.baseVersion != null && fileVersion(source) !== edit.component.baseVersion) {
     return failed(edit.id, "stale", `${file} changed since the model was fetched`);
   }
 
