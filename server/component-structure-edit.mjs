@@ -4,7 +4,7 @@ import { parse } from "@astrojs/compiler";
 import { fileVersion } from "./file-version.mjs";
 import { buildTemplateNodeIndex } from "./component-node-index.mjs";
 import { ensureImport, pruneImportIfUnused } from "./frontmatter-imports.mjs";
-import { loadBlockManifest, indexManifestByName } from "./block-manifest.mjs";
+import { loadBlockManifest, indexManifestByName, BlockManifestError } from "./block-manifest.mjs";
 
 // `resolveAllSpans`/`SpanResolutionError`/`VOID_ELEMENTS`/`escapeAttr`/`importSpecifier`/
 // `collectComponentTags` are exported (in addition to being used locally) so
@@ -83,7 +83,13 @@ export async function resolveComponentStructure(projectRoot, edit) {
     case "insertBlock": {
       let effectiveComponent = component;
       if (component.manifestBlock) {
-        const manifest = loadBlockManifest(projectRoot);
+        let manifest;
+        try {
+          manifest = loadBlockManifest(projectRoot);
+        } catch (err) {
+          if (!(err instanceof BlockManifestError)) throw err;
+          return refuse(err.reason, err.message);
+        }
         const entry = indexManifestByName(manifest).get(component.manifestBlock);
         if (!entry) return refuse("no-match", `no block named "${component.manifestBlock}" in blocks.manifest.json`);
         effectiveComponent = {
@@ -95,7 +101,22 @@ export async function resolveComponentStructure(projectRoot, edit) {
       if (result.refused) return result;
       const { __insertAt, __final, ...rest } = result;
       const inverse = await computeInsertInverse(relPath, __final, __insertAt);
-      return inverse ? { ...rest, inverse } : rest;
+      if (!inverse) {
+        // `raw`-kind markup is caller-supplied and otherwise unvalidated beyond `typeof ===
+        // "string"` (componentEditSchema) — computeInsertInverse re-parses the FINAL post-insert
+        // source and only returns non-null when it finds a single well-formed node whose span
+        // starts exactly at the insertion offset. A null result for a raw insert means the
+        // caller's markup did NOT parse as one clean node there (e.g. unbalanced tags), so refuse
+        // the whole op rather than leave a written-but-unparseable file with no way to undo it.
+        // Non-raw kinds build markup this module controls itself, so a null inverse there means
+        // the fresh re-parse's span resolution merely failed for some other reason (see the
+        // shared handling below) — don't broaden this specific reason to them.
+        if (effectiveComponent.node?.kind === "raw") {
+          return refuse("invalid-input", "raw markup did not resolve to a single well-formed node at the insertion point — refusing rather than writing unparseable markup");
+        }
+        return refuse("internal-error", "could not compute insertBlock's inverse (span resolution failed on the post-insert re-parse) — refusing rather than applying an edit with no undo");
+      }
+      return { ...rest, inverse };
     }
     case "move-node":
     case "moveBlock":
@@ -877,8 +898,16 @@ async function applyMoveNode(file, source, byId, rootId, component) {
       ? null
       : await computeMoveInverse(file, rewritten, movedNodeOffsetInFinal, originParentOffsetInFinal, originalIndex);
 
-  const result = { file, range: { start: 0, end: source.length }, replacement: rewritten };
-  return inverse ? { ...result, inverse } : result;
+  // Same "refuse the whole op rather than ship a no-inverse success" discipline as insertBlock
+  // above: a null inverse here means either the original parent's own span couldn't be
+  // re-located (originParentOffsetInFinal === undefined) or the post-move re-parse's span
+  // resolution failed (computeMoveInverse) — either way, applying the move without a working
+  // undo would be a silently-broken history entry from the app's perspective.
+  if (!inverse) {
+    return refuse("internal-error", "could not compute moveBlock's inverse (span resolution failed on the post-move re-parse) — refusing rather than applying an edit with no undo");
+  }
+
+  return { file, range: { start: 0, end: source.length }, replacement: rewritten, inverse };
 }
 
 // After applyMoveNode builds the final source (`finalSource`), computes moveBlock's inverse by

@@ -4,7 +4,7 @@ import { parse } from "@astrojs/compiler";
 import { fileVersion } from "./file-version.mjs";
 import { buildTemplateNodeIndex, toPublicNode } from "./component-node-index.mjs";
 import { parseImports } from "./frontmatter-imports.mjs";
-import { loadBlockManifest, indexManifestByPath } from "./block-manifest.mjs";
+import { loadBlockManifest, indexManifestByPath, BlockManifestError } from "./block-manifest.mjs";
 
 export class PageModelError extends Error {
   constructor(reason, message) {
@@ -76,6 +76,16 @@ export async function buildPageModel(projectRoot, relPath) {
   const tree = toPublicNode(byId, rootId);
   const fmNode = (ast.children ?? []).find((n) => n.type === "frontmatter");
   const byLocalName = resolveComponentPaths(relPath, fmNode?.value ?? "");
-  const manifestByPath = indexManifestByPath(loadBlockManifest(projectRoot));
+  let manifest;
+  try {
+    manifest = loadBlockManifest(projectRoot);
+  } catch (err) {
+    // Surface the real BlockManifestError reason (parse-failed/invalid-manifest) rather than
+    // letting it propagate as an untyped exception the tool handler would report as
+    // "internal-error" — matching how every other PageModelError reason here is surfaced.
+    if (!(err instanceof BlockManifestError)) throw err;
+    throw new PageModelError(err.reason, err.message);
+  }
+  const manifestByPath = indexManifestByPath(manifest);
   return { version: fileVersion(source), path: relPath, tree: annotateBlocks(tree, byLocalName, manifestByPath) };
 }

@@ -61,4 +61,22 @@ describe("buildPageModel", () => {
   it("throws PageModelError(invalid-input) for a non-.astro path", async () => {
     await expect(buildPageModel(dir, "src/pages/index.md")).rejects.toBeInstanceOf(PageModelError);
   });
+
+  // Final review — Important: an invalid blocks.manifest.json used to throw an untyped
+  // BlockManifestError straight out of buildPageModel, which the get_page_model tool handler
+  // (index-tools.mjs) can only report as reason "internal-error" since it isn't a PageModelError
+  // — losing the real parse-failed/invalid-manifest reason. Fix wraps loadBlockManifest and
+  // rethrows as a PageModelError carrying BlockManifestError's own reason/message through.
+  it("surfaces a malformed manifest's real reason as a PageModelError instead of an untyped throw", async () => {
+    writeFileSync(join(dir, "blocks.manifest.json"), "{ not valid json");
+    writeFileSync(join(dir, "src", "pages", "index.astro"), `---\n---\n<main></main>\n`);
+    let error: unknown;
+    try {
+      await buildPageModel(dir, "src/pages/index.astro");
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toBeInstanceOf(PageModelError);
+    expect((error as InstanceType<typeof PageModelError>).reason).toBe("parse-failed");
+  });
 });

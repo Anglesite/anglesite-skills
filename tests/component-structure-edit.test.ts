@@ -901,4 +901,65 @@ describe("resolveComponentStructure — invertible ops (insertBlock/moveBlock/de
     expect(result.replacement).toContain("<Testimonial");
     expect(result.replacement).toContain(`import Testimonial from`);
   });
+
+  // Final review — Important: insertBlock's `node.kind: "raw"` accepts arbitrary caller-supplied
+  // markup with zero validation beyond `typeof === "string"` (componentEditSchema). Malformed
+  // markup used to get spliced into the file anyway (a success response with no inverse),
+  // producing an unparseable file with no way to undo it. Reuses computeInsertInverse's own
+  // re-parse-and-locate check: when it can't find a single well-formed node starting exactly at
+  // the insertion offset, refuse the WHOLE op rather than writing broken markup.
+  it("refuses a raw insertBlock whose markup doesn't parse as a single well-formed node", async () => {
+    const source = `---\n---\n<main></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const main = [...byId.values()].find((n) => n.tag === "main");
+    const before = readFileSync(join(projectRoot, "src/pages/index.astro"), "utf-8");
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "insertBlock",
+      component: {
+        path: "src/pages/index.astro", baseVersion: fileVersion(source), parentId: main.id, index: 0,
+        node: { kind: "raw", markup: "</div><script>x()</script>" },
+      },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("invalid-input");
+    // Refusing at resolve time means nothing was ever written to disk.
+    expect(readFileSync(join(projectRoot, "src/pages/index.astro"), "utf-8")).toBe(before);
+  });
+
+  // Well-formed raw markup must still succeed with a real computed inverse — the fix above must
+  // not broaden the refusal beyond genuinely malformed markup.
+  it("still accepts well-formed raw insertBlock markup with a computed inverse", async () => {
+    const source = `---\n---\n<main></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const main = [...byId.values()].find((n) => n.tag === "main");
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "insertBlock",
+      component: {
+        path: "src/pages/index.astro", baseVersion: fileVersion(source), parentId: main.id, index: 0,
+        node: { kind: "raw", markup: `<p id="gone">b</p>` },
+      },
+    });
+    expect(result.refused).toBeFalsy();
+    expect(result.inverse.op).toBe("deleteBlock");
+  });
+
+  // Final review — Important: an invalid blocks.manifest.json used to propagate as an untyped
+  // BlockManifestError exception straight out of resolveComponentStructure instead of a normal
+  // refusal — the module's own established pattern (every other resolver here returns
+  // `refuse(reason, detail)`, never throws for a data-shaped problem).
+  it("refuses cleanly (rather than throwing) when insertBlock's manifestBlock resolves against a malformed manifest", async () => {
+    writeFileSync(join(projectRoot, "blocks.manifest.json"), "{ not valid json");
+    const source = `---\n---\n<main></main>\n`;
+    writePage(source);
+    const { byId } = await indexSource(source);
+    const main = [...byId.values()].find((n) => n.tag === "main");
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "insertBlock",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), parentId: main.id, index: 0, manifestBlock: "Testimonial" },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("parse-failed");
+  });
 });
