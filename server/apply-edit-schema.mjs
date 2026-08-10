@@ -108,6 +108,14 @@ export const COMPONENT_EXTRACT_OPS = new Set(["extract-component"]);
  *  reasoning as COMPONENT_EXTRACT_OPS above. */
 export const COMPONENT_TEXT_OPS = new Set(["editText"]);
 
+/** `setDesignToken` alone — it edits the theme's global stylesheet via `component`, not a
+ *  specific .astro component's template/style/frontmatter, so it's deliberately its own Set
+ *  rather than folded into COMPONENT_OPS below (it gets no post-apply `model` refetch — there's
+ *  no single component to refetch a model for). Kept as a named Set (matching every sibling op
+ *  group's dispatch-by-Set pattern above) rather than a bare `edit.op === "setDesignToken"`
+ *  string check in patcher.mjs, purely for consistency — no behavior change. */
+export const DESIGN_TOKEN_OPS = new Set(["setDesignToken"]);
+
 /** Union of style, structure, frontmatter, extract, and text-run component ops — used by the
  *  dispatcher's shared checks (payload presence, baseVersion re-check, model refetch). */
 export const COMPONENT_OPS = new Set([
@@ -208,12 +216,12 @@ export const applyEditInputShape = {
   component: componentEditSchema
     .optional()
     .describe(
-      "Structured component-style edit payload for set-style-property/remove-style-property/add-style-rule/set-rule-selector",
+      "Structured payload for every op that targets a component/page template or its scoped style rather than a page element via `selector`: set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr and their WYSIWYG block-editor aliases insertBlock/moveBlock/deleteBlock/setProp (component-structure ops — see node/parentId/index/nodeId/newParentId/newIndex/name/value/manifestBlock), editText (rich-text run editing via textNodeId/runs), setDesignToken (global CSS custom-property editing via token/tokenValue), set-props-interface/set-script-zone (component-frontmatter ops), and extract-component (nodeId + newName)",
     ),
   op: z
     .enum(editOps)
     .describe(
-      "Edit operation: replace-text (innerText), replace-attr (value is {name, value}), replace-image-src (value is {filename, mimeType, dataURL}), edit-style (value is {property, value}; merges a rule into the owning component's scoped <style>), apply-instruction (reserved: sent only by the Anglesite-app Foundation Models chat path; always returns edit-failed/needs-agent — do not use from external callers), set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr (component-structure ops), set-props-interface/set-script-zone (component-frontmatter ops), extract-component (nodeId + newName — writes a new src/components/<newName>.astro from the selected subtree, hoists obvious literal props, and replaces the selection in the source file with an instance + import — see componentEditSchema)",
+      "Edit operation: replace-text (innerText), replace-attr (value is {name, value}), replace-image-src (value is {filename, mimeType, dataURL}), edit-style (value is {property, value}; merges a rule into the owning component's scoped <style>), apply-instruction (reserved: sent only by the Anglesite-app Foundation Models chat path; always returns edit-failed/needs-agent — do not use from external callers), set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr (component-structure ops), set-props-interface/set-script-zone (component-frontmatter ops), extract-component (nodeId + newName — writes a new src/components/<newName>.astro from the selected subtree, hoists obvious literal props, and replaces the selection in the source file with an instance + import — see componentEditSchema), and the WYSIWYG block-editor ops (same component-structure/text/style-token machinery, protocol-facing vocabulary, each returning a computed `inverse` for host-side undo): insertBlock (component.node or component.manifestBlock + parentId/index — insert a new element/component/slot/raw-markup node, or a blocks.manifest.json-registered block, as a child), moveBlock (component.nodeId + newParentId/newIndex — reparent/reorder an existing node), deleteBlock (component.nodeId — remove a node and its subtree), setProp (component.nodeId/name/value — set or, with value null, remove an attribute), editText (component.textNodeId/runs — replace an element/component/slot's inner content with re-serialized rich-text runs), setDesignToken (component.token/tokenValue — edit a global CSS custom property)",
     ),
   value: z
     .unknown()

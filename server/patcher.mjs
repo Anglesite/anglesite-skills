@@ -13,6 +13,7 @@ import {
   COMPONENT_FRONTMATTER_OPS,
   COMPONENT_EXTRACT_OPS,
   COMPONENT_TEXT_OPS,
+  DESIGN_TOKEN_OPS,
 } from "./apply-edit-schema.mjs";
 
 /**
@@ -65,7 +66,7 @@ export async function resolve(projectRoot, edit) {
   if (COMPONENT_TEXT_OPS.has(edit.op)) {
     return resolveTextRuns(projectRoot, edit);
   }
-  if (edit.op === "setDesignToken") {
+  if (DESIGN_TOKEN_OPS.has(edit.op)) {
     return resolveDesignToken(projectRoot, edit);
   }
   const resolvers = [resolveMdoc, resolveKeystatic, resolveAstro];
