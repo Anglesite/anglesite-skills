@@ -724,4 +724,63 @@ describe("MCP annotation server", () => {
       proc.kill();
     }
   });
+
+  it("editText replaces an element's inner content with re-serialized runs over stdio", async () => {
+    mkdirSync(join(tmpDir, "src", "pages"), { recursive: true });
+    const source = `---\n---\n<p id="t">Hello world</p>\n`;
+    writeFileSync(join(tmpDir, "src", "pages", "index.astro"), source);
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const modelResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "get_page_model", arguments: { path: "src/pages/index.astro" } },
+      });
+      const modelResult = modelResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(modelResult.isError).toBeFalsy();
+      const model = JSON.parse(modelResult.content[0].text);
+      const p = model.tree.children.find((n: { tag?: string }) => n.tag === "p");
+
+      const editResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "1",
+            path: "src/pages/index.astro",
+            op: "editText",
+            component: {
+              path: "src/pages/index.astro",
+              baseVersion: model.version,
+              textNodeId: p.id,
+              runs: [{ text: "Bye", marks: ["strong"] }],
+            },
+          },
+        },
+      });
+      const editResult = editResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(editResult.isError).toBeFalsy();
+      const body = JSON.parse(editResult.content[0].text);
+      expect(body.inverse.op).toBe("editText");
+      const written = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
+      expect(written).toContain("<strong>Bye</strong>");
+    } finally {
+      proc.kill();
+    }
+  });
 });

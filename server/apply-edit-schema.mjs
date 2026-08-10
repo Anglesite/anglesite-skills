@@ -101,13 +101,21 @@ export const COMPONENT_FRONTMATTER_OPS = new Set(["set-props-interface", "set-sc
  *  `resolution.extract` branch). */
 export const COMPONENT_EXTRACT_OPS = new Set(["extract-component"]);
 
-/** Union of style, structure, frontmatter, and extract component ops — used by the dispatcher's
- *  shared checks (payload presence, baseVersion re-check, model refetch). */
+/** The subset of `editOps` that replaces an element's inner content with re-serialized
+ *  rich-text runs via `component` — currently just `editText` (the WYSIWYG block editor's
+ *  in-canvas text editing, see `text-run-edit.mjs`). Its own Set (rather than folding into
+ *  COMPONENT_STRUCTURE_OPS) because it's dispatched to a different resolver module, same
+ *  reasoning as COMPONENT_EXTRACT_OPS above. */
+export const COMPONENT_TEXT_OPS = new Set(["editText"]);
+
+/** Union of style, structure, frontmatter, extract, and text-run component ops — used by the
+ *  dispatcher's shared checks (payload presence, baseVersion re-check, model refetch). */
 export const COMPONENT_OPS = new Set([
   ...COMPONENT_STYLE_OPS,
   ...COMPONENT_STRUCTURE_OPS,
   ...COMPONENT_FRONTMATTER_OPS,
   ...COMPONENT_EXTRACT_OPS,
+  ...COMPONENT_TEXT_OPS,
 ]);
 
 /** Structured payload for the four component-style ops. Identifies the target rule by its exact

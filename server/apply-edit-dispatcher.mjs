@@ -339,7 +339,7 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
   }
 
   // Component ops resolve via an async parser (component-style-edit.mjs's /
-  // component-structure-edit.mjs's `await parse(...)`), which opens a real yield point
+  // component-structure-edit.mjs's / text-run-edit.mjs's `await parse(...)`), which opens a real yield point
   // between that resolver's own baseVersion check and this second, independent read. A
   // concurrent edit landing in that window would otherwise splice this call's now-stale
   // byte offsets into the other call's already-written content — re-validate the hash
