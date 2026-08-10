@@ -857,6 +857,32 @@ describe("resolveComponentStructure — invertible ops (insertBlock/moveBlock/de
     expect(result.inverse.component.newIndex).toBe(0);
   });
 
+  // The fragment root has no lexical span (resolveAllSpans never spans it), so
+  // computeMoveInverse's root-parent branch takes a special path (reusing the fresh re-parse's
+  // deterministic "n0" root id directly instead of offset-matching) — every other moveBlock test
+  // above moves a node whose original parent is a real, spanned element, so this exercises the
+  // root special-case explicitly (reviewer-flagged coverage gap).
+  it("moveBlock's inverse resolves newParentId to the fresh root id when the original parent is the fragment root", async () => {
+    const source = `---\n---\n<h1>Top</h1>\n<p id="m">x</p><footer id="f"></footer>\n`;
+    writePage(source);
+    const { byId, rootId } = await indexSource(source);
+    const rootChildren = byId.get(rootId).childIds.map((id) => byId.get(id));
+    const p = rootChildren.find((n) => n.tag === "p");
+    const footer = rootChildren.find((n) => n.tag === "footer");
+    expect(p.parentId).toBe(rootId); // genuinely top-level: a direct child of the fragment root
+
+    const result = await resolveComponentStructure(projectRoot, {
+      op: "moveBlock",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), nodeId: p.id, newParentId: footer.id, newIndex: 0 },
+    });
+    expect(result.refused).toBeFalsy();
+    expect(result.inverse.op).toBe("moveBlock");
+
+    const { rootId: newRootId } = await indexSource(result.replacement);
+    expect(result.inverse.component.newParentId).toBe(newRootId);
+    expect(result.inverse.component.newIndex).toBe(1); // p was root's 2nd child: [h1, p, footer]
+  });
+
   it("insertBlock resolves manifestBlock to the registered component's tag/path", async () => {
     writeFileSync(join(projectRoot, "blocks.manifest.json"), JSON.stringify({
       schemaVersion: "anglesite-block-manifest/1",

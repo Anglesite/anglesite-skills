@@ -471,6 +471,20 @@ function applyRemoveNode(file, source, byId, rootId, component) {
   // have a matching import either. Known v1 gap; round-tripping such a delete needs the
   // reinserted raw markup's tag re-detected and its import re-added, which duplicates
   // applyInsertNode's component-import logic against a raw blob. Out of scope for this slice.
+  //
+  // KNOWN WHITESPACE-FIDELITY GAP (documented, not fixed — out of scope for this slice, same as
+  // the import-pruning gap above): `inverse.component.node.markup` below is captured from
+  // `span[0]`/`span[1]` only — the node's OWN exact text, not the leading indentation/newline
+  // that the trim below (`start`..`span[0]`) is about to strip from the surrounding document.
+  // Re-inserting that raw markup via insertBlock therefore restores the right node at the right
+  // parent/index, but NOT the original line break + indentation around it — e.g. removing
+  // `\n  <p id="gone">b</p>` from a multi-line, indented `<main>` and reinserting via this
+  // inverse lands the reinserted `<p>` immediately after its sibling with no newline/indent in
+  // between (structurally correct, not byte-identical to the pre-delete source). Fixing this
+  // would mean capturing and re-splicing the stripped whitespace too, which `insertBlock`'s
+  // insertion-offset logic (anchored to sibling spans, not to "was there whitespace here
+  // before") doesn't currently support. Task 8's golden round-trip tests should account for this
+  // rather than assert byte-identical restoration.
   const inverse = {
     op: "insertBlock",
     component: { path: file, parentId: node.parentId, index: removedIndex, node: { kind: "raw", markup: source.slice(span[0], span[1]) } },
@@ -478,7 +492,8 @@ function applyRemoveNode(file, source, byId, rootId, component) {
 
   // Trim a single leading run of horizontal whitespace back to (but not past) a preceding
   // newline, then swallow that newline too — mirrors remove-style-property's cleanup so
-  // removing a node doesn't leave a blank line in its place.
+  // removing a node doesn't leave a blank line in its place. NOTE: this trimmed whitespace is
+  // NOT captured by `inverse` above — see the comment there for the resulting fidelity gap.
   let start = span[0];
   while (start > 0 && (source[start - 1] === " " || source[start - 1] === "\t")) start--;
   if (start > 0 && source[start - 1] === "\n") start--;
@@ -680,20 +695,34 @@ function applyInsertNode(file, source, byId, rootId, component) {
 // from the ORIGINAL parse is meaningless post-edit (the tree changed), so its true id has to be
 // rediscovered the same lexical way every other span in this module is.
 async function computeInsertInverse(file, finalSource, insertAtInFinalSource) {
-  const { ast } = await parse(finalSource, { position: true });
-  const { byId: newById, rootId: newRootId } = buildTemplateNodeIndex(ast, finalSource);
-  let newSpans;
-  try {
-    newSpans = resolveAllSpans(newById, newRootId, finalSource);
-  } catch {
-    return null; // best-effort: if relocation fails, ship no inverse rather than a wrong one
-  }
-  for (const [id, span] of newSpans) {
+  const resolved = await reresolveSpans(finalSource);
+  if (!resolved) return null;
+  for (const [id, span] of resolved.newSpans) {
     if (span[0] === insertAtInFinalSource) {
       return { op: "deleteBlock", component: { path: file, nodeId: id } };
     }
   }
   return null;
+}
+
+// Shared by computeInsertInverse/computeMoveInverse: re-parses `finalSource` fresh and resolves
+// every node's span over it — the identity-rediscovery step both callers need (see their own
+// "resolve identity via resolveAllSpans over the fresh parse, never via id reuse" comments).
+// Returns `null` (a normal, expected outcome, not a bug) only when `resolveAllSpans` throws its
+// own documented `SpanResolutionError` — an unresolvable node in freshly-generated markup means
+// "give up, ship no inverse rather than a wrong one." Any OTHER exception is rethrown rather than
+// swallowed, matching every other `resolveAllSpans` call site in this file's fail-closed
+// discipline (see applyRemoveNode/applyInsertNode/applyMoveNode above).
+async function reresolveSpans(finalSource) {
+  const { ast } = await parse(finalSource, { position: true });
+  const { byId: newById, rootId: newRootId } = buildTemplateNodeIndex(ast, finalSource);
+  try {
+    const newSpans = resolveAllSpans(newById, newRootId, finalSource);
+    return { newById, newRootId, newSpans };
+  } catch (err) {
+    if (!(err instanceof SpanResolutionError)) throw err;
+    return null;
+  }
 }
 
 // True if `nodeId` is a descendant of `ancestorId`, walking `byId`'s `parentId` chain
@@ -781,6 +810,19 @@ async function applyMoveNode(file, source, byId, rootId, component) {
   // Same whitespace/newline cleanup remove-node uses at the node's old location: trim a
   // leading run of horizontal whitespace back to (but not past) a preceding newline, then
   // swallow that newline too, so the old location doesn't leave a blank line behind.
+  //
+  // KNOWN WHITESPACE-FIDELITY GAP (documented, not fixed — same class of gap as
+  // applyRemoveNode's inverse, see the comment above that function's own trim/`inverse`
+  // construction): `nodeText` (captured above, from `nodeSpan[0]`/`nodeSpan[1]`) is the node's
+  // OWN exact text only — it does NOT include the leading indentation/newline this trim is
+  // about to strip from the node's OLD location. moveBlock's own computed inverse is itself
+  // another `moveBlock` op (see below), which on re-invocation resolves its destination offset
+  // via the same `resolveInsertionOffset` sibling-anchored logic this call already used — that
+  // lands the node correctly (right parent, right index) but without reproducing the original
+  // line break + indentation around it, so a multi-line, indented move-then-move-back round trip
+  // is structurally correct, not necessarily byte-identical to the pre-move source. Task 8's
+  // golden round-trip tests should account for this rather than assert byte-identical
+  // restoration.
   let removeStart = nodeSpan[0];
   while (removeStart > 0 && (source[removeStart - 1] === " " || source[removeStart - 1] === "\t")) removeStart--;
   if (removeStart > 0 && source[removeStart - 1] === "\n") removeStart--;
@@ -841,14 +883,9 @@ async function applyMoveNode(file, source, byId, rootId, component) {
 // discipline as `computeInsertInverse`. `origParentOffsetInFinal === null` means the original
 // parent was the fragment root, whose id is reused directly (see the call site's comment).
 async function computeMoveInverse(file, finalSource, movedNodeOffsetInFinal, origParentOffsetInFinal, originalIndex) {
-  const { ast } = await parse(finalSource, { position: true });
-  const { byId: newById, rootId: newRootId } = buildTemplateNodeIndex(ast, finalSource);
-  let newSpans;
-  try {
-    newSpans = resolveAllSpans(newById, newRootId, finalSource);
-  } catch {
-    return null; // best-effort: if relocation fails, ship no inverse rather than a wrong one
-  }
+  const resolved = await reresolveSpans(finalSource);
+  if (!resolved) return null;
+  const { newRootId, newSpans } = resolved;
   let newNodeId = null;
   let newParentId = origParentOffsetInFinal === null ? newRootId : null;
   for (const [id, span] of newSpans) {
