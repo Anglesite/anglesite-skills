@@ -17,8 +17,18 @@ function refuse(reason, detail) {
   return { refused: true, reason, detail };
 }
 
+// Matches a "&" that begins a well-formed HTML character reference — named (letters/digits,
+// e.g. `&nbsp;`) or numeric (`&#68;` / `&#x44;`), always semicolon-terminated. Used by
+// `escapeText` below to avoid re-escaping a reference `parseRunsBestEffort`'s fallback
+// deliberately left un-decoded (see `hasUnrecoverableEntity`) — re-escaping its "&" would
+// corrupt e.g. `&nbsp;` into `&amp;nbsp;` on write-back.
+const ENTITY_OR_SPECIAL = /&(?:#[0-9]+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)|[&<>]/g;
+
 function escapeText(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s).replace(ENTITY_OR_SPECIAL, (m) => {
+    if (m.length > 1) return m; // a well-formed character reference — pass through untouched
+    return m === "&" ? "&amp;" : m === "<" ? "&lt;" : "&gt;";
+  });
 }
 
 const MARK_TAGS = { strong: "strong", em: "em", code: "code" };
@@ -51,6 +61,17 @@ function unescapeAttr(s) {
   return s.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 }
 
+// True when `s` contains an HTML character reference `unescapeText` doesn't fully reverse — any
+// named or numeric reference other than `&lt;`/`&gt;`/`&amp;`. The node's ORIGINAL inner HTML is
+// whatever a site author (or a prior hand-edit) wrote — it can carry ANY entity: `&nbsp;`,
+// `&mdash;`, `&hellip;`, `&copy;`, numeric refs, etc. Decoding only the three `unescapeText`
+// knows and leaving the rest untouched would smuggle a literal "&" into the reconstructed run's
+// `text`, which `escapeText` then re-escapes into `&amp;name;` on write-back — silent corruption.
+// Callers route content matching this to the blunt fallback below instead.
+function hasUnrecoverableEntity(s) {
+  return /&(?!lt;|gt;|amp;)(?:#[0-9]+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/.test(s);
+}
+
 /** Reverses serializeRuns for exactly the shapes it produces — one run whose marks/href nest in
  *  serializeRuns' own fixed order (a outermost, then strong, then em, then code innermost, each
  *  independently optional) — used only to reconstruct the inverse from a node's ORIGINAL
@@ -60,9 +81,13 @@ function unescapeAttr(s) {
  *  entities, so a raw "<" can only appear here as serializeRuns' own structural markup — never
  *  as user text). Out of scope: multi-run content (the normal shape after a first edit) and any
  *  other nested/mixed structure a human hand-edit could introduce outside the editor — after
- *  peeling every wrapper this function recognizes, anything with tag delimiters STILL left over
- *  falls back to a single unmarked run of the fully-stripped text (a safe, if blunt, inverse:
- *  applying it always yields valid honest markup, just not a byte-identical restoration). */
+ *  peeling every wrapper this function recognizes, anything with tag delimiters STILL left over,
+ *  OR any entity `unescapeText` can't safely reverse (`hasUnrecoverableEntity`), falls back to a
+ *  single unmarked run of the fully-stripped text — WITHOUT unescaping it (a safe, if blunt,
+ *  inverse: `escapeText`'s entity-reference passthrough leaves any character reference in that
+ *  raw text exactly as it was, so applying this inverse always yields valid honest markup AND,
+ *  for this fallback, byte-identical restoration of the entity — just not necessarily of any
+ *  marks/href the fallback also discards). */
 function parseRunsBestEffort(innerHtml) {
   let rest = innerHtml;
   let href;
@@ -84,10 +109,13 @@ function parseRunsBestEffort(innerHtml) {
     }
   }
 
-  if (!/[<>]/.test(rest)) {
+  if (!/[<>]/.test(rest) && !hasUnrecoverableEntity(rest)) {
     return [{ text: unescapeText(rest), marks, ...(href !== undefined ? { href } : {}) }];
   }
-  return [{ text: unescapeText(innerHtml.replace(/<[^>]+>/g, "")), marks: [] }];
+  // Blunt fallback: strip tags only, do NOT attempt entity-unescaping on text that can't be
+  // safely round-tripped through unescapeText's narrow lt/gt/amp table — see
+  // `hasUnrecoverableEntity` above and `escapeText`'s entity-reference passthrough.
+  return [{ text: innerHtml.replace(/<[^>]+>/g, ""), marks: [] }];
 }
 
 export async function resolveTextRuns(projectRoot, edit) {

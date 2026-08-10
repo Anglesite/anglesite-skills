@@ -131,6 +131,39 @@ describe("resolveTextRuns", () => {
     expect(result.inverse.component.runs).toEqual([{ text: "New", marks: [] }]);
   });
 
+  // Final review — Critical: the original inner HTML can carry ANY HTML entity, not just the
+  // three unescapeText reverses (&lt;/&gt;/&amp;) — e.g. &nbsp;/&mdash; from a site author's own
+  // markup or a prior hand-edit. unescapeText left them untouched (as literal text carrying a
+  // real "&" character), which escapeText then re-escaped into &amp;nbsp;/&amp;mdash; on
+  // write-back — silent, user-visible corruption on the undo path. Confirms the computed inverse
+  // holds the raw entity text (not mangled) AND that actually applying it as a real editText op
+  // restores the exact original bytes.
+  it("preserves HTML entities other than lt/gt/amp exactly through the computed inverse", async () => {
+    const source = `---\n---\n<p id="t">Cafe&nbsp;Bar &mdash; open</p>\n`;
+    const filePath = join(projectRoot, "src/pages/index.astro");
+    writeFileSync(filePath, source);
+    const { byId } = await indexSource(source);
+    const p = [...byId.values()].find((n) => n.tag === "p")!;
+    const result = await resolveTextRuns(projectRoot, {
+      op: "editText",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(source), textNodeId: p.id, runs: [{ text: "New text", marks: [] }] },
+    });
+    expect(result.refused).toBeFalsy();
+    // The reconstructed inverse must NOT have turned the entities into "&amp;nbsp;"/"&amp;mdash;".
+    expect(result.inverse.component.runs).toEqual([{ text: "Cafe&nbsp;Bar &mdash; open", marks: [] }]);
+
+    const edited = source.slice(0, result.range.start) + result.replacement + source.slice(result.range.end);
+    writeFileSync(filePath, edited);
+
+    const undo = await resolveTextRuns(projectRoot, {
+      op: "editText",
+      component: { path: "src/pages/index.astro", baseVersion: fileVersion(edited), textNodeId: p.id, runs: result.inverse.component.runs },
+    });
+    expect(undo.refused).toBeFalsy();
+    const restored = edited.slice(0, undo.range.start) + undo.replacement + edited.slice(undo.range.end);
+    expect(restored).toBe(source);
+  });
+
   // Minor: a void/self-closing element has no inner-content region at all — refuse cleanly
   // rather than guess.
   it("refuses cleanly for a self-closing element with no inner content region", async () => {
