@@ -15,6 +15,12 @@ import { loadBlockManifest, indexManifestByName } from "./block-manifest.mjs";
 // uses it the other direction: carrying imports for component-kind descendants INTO the new
 // file) — can reuse this module's single, carefully-tested implementation rather than a second,
 // drift-prone copy.
+//
+// `scanTagOpen` is also exported so text-run-edit.mjs's `editText` resolver can find an
+// element's TRUE opening-tag end (respecting quoted attribute values and brace-delimited
+// attribute expressions, e.g. `<p title="a>b">`) instead of a naive `indexOf(">", ...)` that a
+// stray `>` inside an attribute value would fool — same class of bug this function already
+// solves for `findMatchingClose`/`findTagOpenFrom` above, reused rather than duplicated.
 
 function refuse(reason, detail) {
   return { refused: true, reason, detail };
@@ -246,7 +252,7 @@ function scanBraceBlock(s, start) {
 // End (exclusive) of a tag's own opening `<...>` starting at `start` (s[start] === "<"),
 // honoring quoted attribute values and brace-delimited attribute expressions so a stray
 // `>` inside either doesn't prematurely close the tag. Returns null if unterminated.
-function scanTagOpen(s, start) {
+export function scanTagOpen(s, start) {
   let j = start + 1;
   while (j < s.length) {
     const ch = s[j];

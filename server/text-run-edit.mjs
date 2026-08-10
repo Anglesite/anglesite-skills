@@ -11,7 +11,7 @@ import { join, normalize } from "node:path";
 import { parse } from "@astrojs/compiler";
 import { fileVersion } from "./file-version.mjs";
 import { buildTemplateNodeIndex } from "./component-node-index.mjs";
-import { resolveAllSpans, SpanResolutionError, escapeAttr } from "./component-structure-edit.mjs";
+import { resolveAllSpans, SpanResolutionError, escapeAttr, scanTagOpen } from "./component-structure-edit.mjs";
 
 function refuse(reason, detail) {
   return { refused: true, reason, detail };
@@ -39,24 +39,55 @@ function serializeRuns(runs) {
     .join("");
 }
 
-/** Reverses serializeRuns for exactly the shapes it produces — one run per top-level mark
- *  combination, used only to reconstruct the inverse from a node's ORIGINAL rendered content,
- *  not a general HTML-to-runs parser. Out of scope: nested/mixed structures a human hand-edit
- *  could introduce outside the editor — those fall back to a single unmarked run of the raw
- *  inner text (a safe, if blunt, inverse: applying it always yields valid honest markup, just
- *  not a byte-identical restoration of hand-authored HTML). */
+function unescapeText(s) {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+// Inverts escapeAttr (component-structure-edit.mjs): that escapes "&" first, then '"', so
+// undoing it runs in the opposite order — unescape "&quot;" back to '"' first, THEN "&amp;"
+// back to "&" — otherwise a literal "&quot;" that was itself escaped from a source "&amp;quot;"
+// would double-unescape.
+function unescapeAttr(s) {
+  return s.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+}
+
+/** Reverses serializeRuns for exactly the shapes it produces — one run whose marks/href nest in
+ *  serializeRuns' own fixed order (a outermost, then strong, then em, then code innermost, each
+ *  independently optional) — used only to reconstruct the inverse from a node's ORIGINAL
+ *  rendered content, not a general HTML-to-runs parser. Peels each wrapper only when the
+ *  *entire* remaining string is exactly `<tag>...</tag>` (a plain prefix/suffix check, safe
+ *  because `escapeText`/`escapeAttr` always turn any literal "<"/">" in real run content into
+ *  entities, so a raw "<" can only appear here as serializeRuns' own structural markup — never
+ *  as user text). Out of scope: multi-run content (the normal shape after a first edit) and any
+ *  other nested/mixed structure a human hand-edit could introduce outside the editor — after
+ *  peeling every wrapper this function recognizes, anything with tag delimiters STILL left over
+ *  falls back to a single unmarked run of the fully-stripped text (a safe, if blunt, inverse:
+ *  applying it always yields valid honest markup, just not a byte-identical restoration). */
 function parseRunsBestEffort(innerHtml) {
-  const m = innerHtml.match(/^(?:<a href="([^"]*)">)?(?:<strong>)?(?:<em>)?(?:<code>)?([\s\S]*?)(?:<\/code>)?(?:<\/em>)?(?:<\/strong>)?(?:<\/a>)?$/);
-  if (m && m[0] === innerHtml) {
-    const marks = [];
-    if (innerHtml.includes("<strong>")) marks.push("strong");
-    if (innerHtml.includes("<em>")) marks.push("em");
-    if (innerHtml.includes("<code>")) marks.push("code");
-    const text = m[2].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-    return [{ text, marks, ...(m[1] !== undefined ? { href: m[1] } : {}) }];
+  let rest = innerHtml;
+  let href;
+  if (rest.startsWith('<a href="') && rest.endsWith("</a>")) {
+    const closeQuote = rest.indexOf('">', 9);
+    if (closeQuote !== -1) {
+      href = unescapeAttr(rest.slice(9, closeQuote));
+      rest = rest.slice(closeQuote + 2, rest.length - 4);
+    }
   }
-  const text = innerHtml.replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-  return [{ text, marks: [] }];
+
+  const marks = [];
+  for (const mark of ["strong", "em", "code"]) {
+    const open = `<${mark}>`;
+    const close = `</${mark}>`;
+    if (rest.startsWith(open) && rest.endsWith(close) && rest.length >= open.length + close.length) {
+      marks.push(mark);
+      rest = rest.slice(open.length, rest.length - close.length);
+    }
+  }
+
+  if (!/[<>]/.test(rest)) {
+    return [{ text: unescapeText(rest), marks, ...(href !== undefined ? { href } : {}) }];
+  }
+  return [{ text: unescapeText(innerHtml.replace(/<[^>]+>/g, "")), marks: [] }];
 }
 
 export async function resolveTextRuns(projectRoot, edit) {
@@ -87,7 +118,13 @@ export async function resolveTextRuns(projectRoot, edit) {
   }
   const { byId, rootId } = buildTemplateNodeIndex(ast, source);
   const node = byId.get(textNodeId);
-  if (!node || node.kind !== "element") return refuse("no-match", "editText requires an element node id from get_page_model");
+  // Tag-shaped kinds only — same set `set-attr` (component-structure-edit.mjs) treats
+  // uniformly, since the open/close-tag boundary scan below doesn't depend on which of these
+  // three it is. A block editor's blocks are frequently component instances (e.g.
+  // `<Badge>New</Badge>`), so excluding "component"/"slot" would refuse a common real case.
+  if (!node || !["element", "component", "slot"].includes(node.kind)) {
+    return refuse("no-match", "editText requires an element/component/slot node id from get_page_model");
+  }
 
   let spans;
   try {
@@ -102,9 +139,21 @@ export async function resolveTextRuns(projectRoot, edit) {
   // Inner-content boundary: the open tag's end through the matching close tag's start. Both
   // are re-derived from the source text at the already-verified `outer` span rather than
   // trusted from the AST — same discipline as every other resolver in this module set.
-  const openEnd = source.indexOf(">", outer[0]) + 1;
+  //
+  // The open tag's end is found via `scanTagOpen` (component-structure-edit.mjs) rather than a
+  // naive `indexOf(">", ...)` — a stray literal ">" inside a quoted attribute value (e.g.
+  // `<p title="a>b">`) would otherwise fool a naive forward scan into landing INSIDE the
+  // attribute list, corrupting the splice. `scanTagOpen` skips quoted values and brace-delimited
+  // attribute expressions the same way `resolveAllSpans` already does when it first resolved
+  // `outer` itself.
+  const tagInfo = scanTagOpen(source, outer[0]);
+  if (!tagInfo) return refuse("no-match", "could not resolve the element's opening tag");
+  const openEnd = tagInfo.end;
   const closeStart = source.lastIndexOf("<", outer[1] - 1);
-  if (openEnd <= outer[0] || closeStart < openEnd) return refuse("no-match", "could not resolve the element's inner-content boundary");
+  // Also refuses cleanly for a self-closing/void element (e.g. `<img ... />`, `<br>`) — there's
+  // no real close tag to search for, so `closeStart` lands back at (or before) `outer[0]`,
+  // which is always < `openEnd`.
+  if (closeStart < openEnd) return refuse("no-match", "could not resolve the element's inner-content boundary");
 
   const originalInner = source.slice(openEnd, closeStart);
   const inverse = { op: "editText", component: { path: relPath, textNodeId, runs: parseRunsBestEffort(originalInner) } };
