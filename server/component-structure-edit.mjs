@@ -464,6 +464,20 @@ export function resolveAllSpans(byId, rootId, source) {
   return spans;
 }
 
+// Exclusive offset in `source` immediately after the frontmatter's closing `---` AND its
+// own mandatory newline — the earliest position template content may start. Returns 0 when
+// there's no frontmatter. remove-node/move-node's leading-whitespace trim (below) must never
+// cross back past this boundary: doing so would delete the delimiter's own newline, gluing
+// the closing `---` directly onto whatever follows once trimmed away (`---<div`), which
+// @astrojs/compiler silently misparses as frontmatter-adjacent text instead of an element.
+function frontmatterBodyEnd(source) {
+  const fm = source.match(/^(---\r?\n)([\s\S]*?)(\r?\n---)/);
+  if (!fm) return 0;
+  const afterDashes = fm.index + fm[0].length;
+  const trailingNewline = source.slice(afterDashes).match(/^\r?\n/);
+  return trailingNewline ? afterDashes + trailingNewline[0].length : afterDashes;
+}
+
 function applyRemoveNode(file, source, byId, rootId, component) {
   const { nodeId } = component;
   if (typeof nodeId !== "string") {
@@ -519,11 +533,14 @@ function applyRemoveNode(file, source, byId, rootId, component) {
 
   // Trim a single leading run of horizontal whitespace back to (but not past) a preceding
   // newline, then swallow that newline too — mirrors remove-style-property's cleanup so
-  // removing a node doesn't leave a blank line in its place. NOTE: this trimmed whitespace is
-  // NOT captured by `inverse` above — see the comment there for the resulting fidelity gap.
+  // removing a node doesn't leave a blank line in its place. Clamped to never cross back
+  // into the frontmatter delimiter's own newline (see frontmatterBodyEnd). NOTE: this
+  // trimmed whitespace is NOT captured by `inverse` above — see the comment there for the
+  // resulting fidelity gap.
   let start = span[0];
   while (start > 0 && (source[start - 1] === " " || source[start - 1] === "\t")) start--;
   if (start > 0 && source[start - 1] === "\n") start--;
+  start = Math.max(start, frontmatterBodyEnd(source));
 
   const withoutNode = source.slice(0, start) + source.slice(span[1]);
 
@@ -837,6 +854,8 @@ async function applyMoveNode(file, source, byId, rootId, component) {
   // Same whitespace/newline cleanup remove-node uses at the node's old location: trim a
   // leading run of horizontal whitespace back to (but not past) a preceding newline, then
   // swallow that newline too, so the old location doesn't leave a blank line behind.
+  // Clamped to never cross back into the frontmatter delimiter's own newline (see
+  // frontmatterBodyEnd) — same corruption remove-node's trim guards against.
   //
   // KNOWN WHITESPACE-FIDELITY GAP (documented, not fixed — same class of gap as
   // applyRemoveNode's inverse, see the comment above that function's own trim/`inverse`
@@ -853,6 +872,7 @@ async function applyMoveNode(file, source, byId, rootId, component) {
   let removeStart = nodeSpan[0];
   while (removeStart > 0 && (source[removeStart - 1] === " " || source[removeStart - 1] === "\t")) removeStart--;
   if (removeStart > 0 && source[removeStart - 1] === "\n") removeStart--;
+  removeStart = Math.max(removeStart, frontmatterBodyEnd(source));
   const removeEnd = nodeSpan[1];
 
   if (insertAt > removeStart && insertAt < removeEnd) {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 import {
   addAnnotation,
@@ -49,17 +49,19 @@ export function buildServer(projectRoot) {
     version: pluginVersion(),
   });
 
-  server.tool(
+  server.registerTool(
     "add_annotation",
-    "Pin a feedback note to a page element",
     {
-      path: z.string().describe("Page path, e.g. /about"),
-      selector: z.string().describe("CSS selector of the target element"),
-      text: z.string().describe("The feedback note text"),
-      sourceFile: z
-        .string()
-        .optional()
-        .describe("Source file path, e.g. src/pages/about.astro"),
+      description: "Pin a feedback note to a page element",
+      inputSchema: z.object({
+        path: z.string().describe("Page path, e.g. /about"),
+        selector: z.string().describe("CSS selector of the target element"),
+        text: z.string().describe("The feedback note text"),
+        sourceFile: z
+          .string()
+          .optional()
+          .describe("Source file path, e.g. src/pages/about.astro"),
+      }),
     },
     ({ path, selector, text, sourceFile }) => {
       const annotation = addAnnotation(projectRoot, {
@@ -72,17 +74,19 @@ export function buildServer(projectRoot) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "list_annotations",
-    "List unresolved feedback annotations",
     {
-      path: z.string().optional().describe("Filter by page path"),
-      resolved: z
-        .boolean()
-        .optional()
-        .describe("Include resolved annotations too. Default false (unresolved only)."),
-      limit: z.number().int().positive().optional().describe("Max annotations to return"),
-      offset: z.number().int().nonnegative().optional().describe("Skip this many before applying limit"),
+      description: "List unresolved feedback annotations",
+      inputSchema: z.object({
+        path: z.string().optional().describe("Filter by page path"),
+        resolved: z
+          .boolean()
+          .optional()
+          .describe("Include resolved annotations too. Default false (unresolved only)."),
+        limit: z.number().int().positive().optional().describe("Max annotations to return"),
+        offset: z.number().int().nonnegative().optional().describe("Skip this many before applying limit"),
+      }),
     },
     ({ path, resolved, limit, offset }) => {
       const annotations = listAnnotations(projectRoot, path, { resolved, limit, offset });
@@ -90,11 +94,13 @@ export function buildServer(projectRoot) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "resolve_annotation",
-    "Mark a feedback annotation as resolved",
     {
-      id: z.string().describe("Annotation ID to resolve"),
+      description: "Mark a feedback annotation as resolved",
+      inputSchema: z.object({
+        id: z.string().describe("Annotation ID to resolve"),
+      }),
     },
     ({ id }) => {
       try {
@@ -117,10 +123,13 @@ export function buildServer(projectRoot) {
   // back as `commit` on the edit-applied response. `onApplied` is called with `{file, range}` for
   // every single-file op, or `{files, message}` for extract-component's two-file write (Component
   // Editor slice 5, Anglesite-app#495) — `recordEdit`'s `files` mode commits both onto ONE commit.
-  server.tool(
+  server.registerTool(
     "apply_edit",
-    "Apply an edit to the underlying source for a previewed page element. The selector is the structured ElementInfo payload built by the WKWebView overlay; the server resolves it via selector.mjs and patches the matching source file. Successful edits are also committed onto the hidden anglesite/edits branch for per-edit undo.",
-    applyEditInputShape,
+    {
+      description:
+        "Apply an edit to the underlying source for a previewed page element. The selector is the structured ElementInfo payload built by the WKWebView overlay; the server resolves it via selector.mjs and patches the matching source file. Successful edits are also committed onto the hidden anglesite/edits branch for per-edit undo.",
+      inputSchema: z.object(applyEditInputShape),
+    },
     async (input) =>
       applyEdit(projectRoot, input, {
         onApplied: ({ file, range, files, message }) =>
@@ -130,12 +139,15 @@ export function buildServer(projectRoot) {
       }),
   );
 
-  server.tool(
+  server.registerTool(
     "undo_edit",
-    "Undo the most-recent commit on the hidden anglesite/edits branch by writing the parent commit's blobs back to disk. HEAD-only in v1: an optional `commit` argument must equal current HEAD (or be omitted). `force: true` skips the working-tree-modification check and overwrites any external changes to the touched files.",
     {
-      commit: z.string().optional().describe("SHA to undo. Must equal current HEAD of refs/heads/anglesite/edits if provided."),
-      force: z.boolean().optional().describe("Skip the working-tree-modification check and overwrite any external changes. Default false."),
+      description:
+        "Undo the most-recent commit on the hidden anglesite/edits branch by writing the parent commit's blobs back to disk. HEAD-only in v1: an optional `commit` argument must equal current HEAD (or be omitted). `force: true` skips the working-tree-modification check and overwrites any external changes to the touched files.",
+      inputSchema: z.object({
+        commit: z.string().optional().describe("SHA to undo. Must equal current HEAD of refs/heads/anglesite/edits if provided."),
+        force: z.boolean().optional().describe("Skip the working-tree-modification check and overwrite any external changes. Default false."),
+      }),
     },
     async ({ commit, force }) => {
       const result = await undoEdit(projectRoot, { commit, force });
@@ -146,11 +158,14 @@ export function buildServer(projectRoot) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "get_component_model",
-    "Parse an .astro component into a structured, read-only model: template node tree with source spans, frontmatter Props interface, scoped style rules, and client script zone. Used by the app's Component Editor.",
     {
-      path: z.string().describe("Component path relative to the project root, e.g. src/components/Card.astro"),
+      description:
+        "Parse an .astro component into a structured, read-only model: template node tree with source spans, frontmatter Props interface, scoped style rules, and client script zone. Used by the app's Component Editor.",
+      inputSchema: z.object({
+        path: z.string().describe("Component path relative to the project root, e.g. src/components/Card.astro"),
+      }),
     },
     async ({ path }) => {
       try {
@@ -178,11 +193,14 @@ export function buildServer(projectRoot) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "get_page_model",
-    "Parse a page .astro file into a block-annotated template tree: the same node shape get_component_model returns, with each component instance that resolves to a theme block-manifest entry carrying owner-facing name/description/icon/propEditors/slots. Used by the WYSIWYG block editor.",
     {
-      path: z.string().describe("Page path relative to the project root, e.g. src/pages/index.astro"),
+      description:
+        "Parse a page .astro file into a block-annotated template tree: the same node shape get_component_model returns, with each component instance that resolves to a theme block-manifest entry carrying owner-facing name/description/icon/propEditors/slots. Used by the WYSIWYG block editor.",
+      inputSchema: z.object({
+        path: z.string().describe("Page path relative to the project root, e.g. src/pages/index.astro"),
+      }),
     },
     async ({ path }) => {
       try {
@@ -202,20 +220,23 @@ export function buildServer(projectRoot) {
 
   // Siri AI Phase A content tools (#140 / A.6). `list_content` feeds the Anglesite-app's
   // SiteContentGraph (#142); `create_page`/`create_post` back the Add-Page/Add-Post intents (A.5).
-  server.tool(
+  server.registerTool(
     "list_content",
-    "List the site's pages, article-like content-collection entries (posts, notes, episodes, experiments), and images under public/images, as structured JSON. Read-only; the filesystem is the source of truth.",
     {
-      type: z
-        .enum(["pages", "posts", "images"])
-        .optional()
-        .describe("Return only this bucket; the other two come back empty. Default: all three."),
-      limit: z.number().int().positive().optional().describe("Max entries to return per bucket"),
-      offset: z.number().int().nonnegative().optional().describe("Skip this many entries per bucket before applying limit"),
-      fields: z
-        .array(z.string())
-        .optional()
-        .describe("Project each entry down to only these field names, e.g. [\"title\", \"filePath\"]"),
+      description:
+        "List the site's pages, article-like content-collection entries (posts, notes, episodes, experiments), and images under public/images, as structured JSON. Read-only; the filesystem is the source of truth.",
+      inputSchema: z.object({
+        type: z
+          .enum(["pages", "posts", "images"])
+          .optional()
+          .describe("Return only this bucket; the other two come back empty. Default: all three."),
+        limit: z.number().int().positive().optional().describe("Max entries to return per bucket"),
+        offset: z.number().int().nonnegative().optional().describe("Skip this many entries per bucket before applying limit"),
+        fields: z
+          .array(z.string())
+          .optional()
+          .describe("Project each entry down to only these field names, e.g. [\"title\", \"filePath\"]"),
+      }),
     },
     ({ type, limit, offset, fields }) => {
       const listing = listContent(projectRoot, { type, limit, offset, fields });
@@ -223,15 +244,18 @@ export function buildServer(projectRoot) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "create_page",
-    "Scaffold a new Astro page under src/pages/ from a BaseLayout template and commit it. Does not overwrite an existing page.",
     {
-      name: z.string().describe("Human-readable page name, e.g. 'About Us'. Used as the title."),
-      route: z
-        .string()
-        .optional()
-        .describe("URL route, e.g. /about or /services/web. Derived from name when omitted."),
+      description:
+        "Scaffold a new Astro page under src/pages/ from a BaseLayout template and commit it. Does not overwrite an existing page.",
+      inputSchema: z.object({
+        name: z.string().describe("Human-readable page name, e.g. 'About Us'. Used as the title."),
+        route: z
+          .string()
+          .optional()
+          .describe("URL route, e.g. /about or /services/web. Derived from name when omitted."),
+      }),
     },
     ({ name, route }) => {
       try {
@@ -243,16 +267,19 @@ export function buildServer(projectRoot) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "create_post",
-    "Scaffold a new content-collection entry (default collection: posts) as a draft from a template and commit it. Does not overwrite an existing entry.",
     {
-      title: z.string().describe("Post title. Used as the slug source when slug is omitted."),
-      collection: z
-        .string()
-        .optional()
-        .describe("Content collection name, e.g. posts (default) or notes."),
-      slug: z.string().optional().describe("URL slug. Derived from title when omitted."),
+      description:
+        "Scaffold a new content-collection entry (default collection: posts) as a draft from a template and commit it. Does not overwrite an existing entry.",
+      inputSchema: z.object({
+        title: z.string().describe("Post title. Used as the slug source when slug is omitted."),
+        collection: z
+          .string()
+          .optional()
+          .describe("Content collection name, e.g. posts (default) or notes."),
+        slug: z.string().optional().describe("URL slug. Derived from title when omitted."),
+      }),
     },
     ({ title, collection, slug }) => {
       try {
@@ -266,17 +293,20 @@ export function buildServer(projectRoot) {
 
   // Typed content objects (#377 / V-1). Scaffolds an h-entry-family or business entry from the
   // shared content-type registry, byte-faithful to the app's native createTyped path.
-  server.tool(
+  server.registerTool(
     "create_content",
-    "Scaffold a typed content entry (e.g. note, article, photo, event, review) as a draft from the shared content-type registry and commit it. Collection-stored types only; does not overwrite an existing entry.",
     {
-      type: z
-        .enum(creatableContentTypeIds)
-        .describe("Content type id, e.g. note, article, event. Determines the collection and frontmatter."),
-      title: z
-        .string()
-        .optional()
-        .describe("Entry title. Used for the title/name field (when the type has one) and as the slug source."),
+      description:
+        "Scaffold a typed content entry (e.g. note, article, photo, event, review) as a draft from the shared content-type registry and commit it. Collection-stored types only; does not overwrite an existing entry.",
+      inputSchema: z.object({
+        type: z
+          .enum(creatableContentTypeIds)
+          .describe("Content type id, e.g. note, article, event. Determines the collection and frontmatter."),
+        title: z
+          .string()
+          .optional()
+          .describe("Entry title. Used for the title/name field (when the type has one) and as the slug source."),
+      }),
     },
     ({ type, title }) => {
       try {
