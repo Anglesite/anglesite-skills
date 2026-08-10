@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "nod
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
+import { fileVersion as fileVersionOf } from "../server/file-version.mjs";
 
 const SERVER_PATH = resolve(__dirname, "..", "server", "index.mjs");
 
@@ -779,6 +780,54 @@ describe("MCP annotation server", () => {
       expect(body.inverse.op).toBe("editText");
       const written = readFileSync(join(tmpDir, "src", "pages", "index.astro"), "utf-8");
       expect(written).toContain("<strong>Bye</strong>");
+    } finally {
+      proc.kill();
+    }
+  });
+
+  it("setDesignToken patches global.css's :root and returns a stamped inverse over stdio", async () => {
+    mkdirSync(join(tmpDir, "src", "styles"), { recursive: true });
+    const css = `:root {\n  --color-primary: #2563eb;\n}\n`;
+    writeFileSync(join(tmpDir, "src", "styles", "global.css"), css);
+    const proc = startServer(tmpDir);
+    try {
+      await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+      sendNotification(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
+
+      const editResponse = await sendMessage(proc, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "apply_edit",
+          arguments: {
+            id: "1",
+            path: "src/styles/global.css",
+            op: "setDesignToken",
+            component: {
+              path: "src/styles/global.css",
+              baseVersion: fileVersionOf(css),
+              token: "--color-primary",
+              tokenValue: "#111111",
+            },
+          },
+        },
+      });
+      const editResult = editResponse.result as { content: { text: string }[]; isError?: boolean };
+      expect(editResult.isError).toBeFalsy();
+      const payload = JSON.parse(editResult.content[0].text);
+      expect(payload.inverse.component.tokenValue).toBe("#2563eb");
+      const written = readFileSync(join(tmpDir, "src", "styles", "global.css"), "utf-8");
+      expect(written).toContain("--color-primary: #111111");
     } finally {
       proc.kill();
     }

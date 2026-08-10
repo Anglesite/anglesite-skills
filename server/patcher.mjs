@@ -6,6 +6,7 @@ import { resolveComponentStructure } from "./component-structure-edit.mjs";
 import { resolveComponentFrontmatter } from "./component-frontmatter-edit.mjs";
 import { resolveComponentExtract } from "./component-extract-edit.mjs";
 import { resolveTextRuns } from "./text-run-edit.mjs";
+import { resolveDesignToken } from "./design-token-edit.mjs";
 import {
   COMPONENT_STYLE_OPS,
   COMPONENT_STRUCTURE_OPS,
@@ -25,16 +26,19 @@ import {
  *
  * Tries resolvers in priority order: edit-style → component-style ops →
  * component-structure ops → component-frontmatter ops → component-extract op →
- * editText → .mdoc → Keystatic YAML/JSON → .astro. Returns the first
- * non-refusal. If all refuse, returns the most informative refusal (from the
- * highest-priority resolver that had an opinion).
+ * editText → setDesignToken → .mdoc → Keystatic YAML/JSON → .astro. Returns
+ * the first non-refusal. If all refuse, returns the most informative refusal
+ * (from the highest-priority resolver that had an opinion).
  *
  * Async because `resolveComponentStyle` (component-style-edit.mjs),
  * `resolveComponentStructure` (component-structure-edit.mjs),
  * `resolveComponentFrontmatter` (component-frontmatter-edit.mjs),
  * `resolveComponentExtract` (component-extract-edit.mjs), and
  * `resolveTextRuns` (text-run-edit.mjs) parse the target .astro file with
- * `@astrojs/compiler`, which is itself async. Every other resolver here is
+ * `@astrojs/compiler`, which is itself async. `resolveDesignToken`
+ * (design-token-edit.mjs) is also declared `async` for signature consistency
+ * with those siblings, but its own CSS parse (css-tree, via `walkCssRules`)
+ * is synchronous — no real yield point there. Every other resolver here is
  * synchronous; awaiting their (non-Promise) return values is a no-op, so this
  * doesn't change their behavior.
  *
@@ -60,6 +64,9 @@ export async function resolve(projectRoot, edit) {
   }
   if (COMPONENT_TEXT_OPS.has(edit.op)) {
     return resolveTextRuns(projectRoot, edit);
+  }
+  if (edit.op === "setDesignToken") {
+    return resolveDesignToken(projectRoot, edit);
   }
   const resolvers = [resolveMdoc, resolveKeystatic, resolveAstro];
   let bestRefusal = /** @type {ResolveRefusal | null} */ (null);
