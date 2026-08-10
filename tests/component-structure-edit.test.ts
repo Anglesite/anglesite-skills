@@ -401,6 +401,28 @@ describe("resolveComponentStructure — remove-node", () => {
     expect(next).not.toContain("img");
     expect(next).toContain("<p>Keep</p>");
   });
+
+  it("does not corrupt the frontmatter delimiter when removing the first top-level node with no gap to its sibling", async () => {
+    const src = `---\nconst x = 1;\n---\n<div id="first">a</div><div id="second">b</div>\n`;
+    writeFileSync(join(tmpDir, "src", "components", "Card.astro"), src);
+    const baseVersion = fileVersion(src);
+    const { byId, rootId } = await nodeIndex(src);
+    const [first] = byId.get(rootId).childIds.map((id) => byId.get(id));
+
+    const edit = { op: "remove-node", component: { path: "src/components/Card.astro", baseVersion, nodeId: first.id } };
+    const result = await resolveComponentStructure(tmpDir, edit);
+    expect(result.refused).toBeFalsy();
+    const next = apply(result, src);
+
+    // A prior bug unconditionally trimmed the newline right after the frontmatter's
+    // closing `---`, gluing it directly onto the next sibling (`---<div...`) whenever
+    // nothing else supplied a replacement newline — which @astrojs/compiler silently
+    // misparses as frontmatter-adjacent text instead of an element, with no diagnostic.
+    const { ast } = await parse(next, { position: true });
+    expect(ast.children[0].type).toBe("frontmatter");
+    const secondDiv = ast.children.find((c) => c.type === "element" && c.name === "div");
+    expect(secondDiv).toBeDefined();
+  });
 });
 
 describe("resolveComponentStructure — insert-node", () => {
@@ -748,5 +770,25 @@ describe("resolveComponentStructure — move-node", () => {
 
     const { ast } = await parse(next, { position: true });
     expect(ast).toBeDefined();
+  });
+
+  it("does not corrupt the frontmatter delimiter when moving away the first top-level node with no gap to its sibling", async () => {
+    const src = `---\nconst x = 1;\n---\n<div id="first">a</div><div id="second">b</div><footer></footer>\n`;
+    writeFileSync(join(tmpDir, "src", "components", "Card.astro"), src);
+    const baseVersion = fileVersion(src);
+    const { byId, rootId } = await nodeIndex(src);
+    const [first, , footer] = byId.get(rootId).childIds.map((id) => byId.get(id));
+
+    const edit = { op: "move-node", component: { path: "src/components/Card.astro", baseVersion, nodeId: first.id, newParentId: footer.id, newIndex: 0 } };
+    const result = await resolveComponentStructure(tmpDir, edit);
+    expect(result.refused).toBeFalsy();
+    const next = apply(result, src);
+
+    // Same frontmatter-delimiter corruption applyRemoveNode's regression test guards
+    // against — applyMoveNode's old-location cleanup shares the identical trim logic.
+    const { ast } = await parse(next, { position: true });
+    expect(ast.children[0].type).toBe("frontmatter");
+    const secondDiv = ast.children.find((c) => c.type === "element" && c.name === "div");
+    expect(secondDiv).toBeDefined();
   });
 });
