@@ -633,7 +633,7 @@ function childlessInsertionPoint(parent, rootId, spans, source) {
 //     is resolvable at all, falls back to the childless-parent case.
 //
 // Returns null when no insertion point could be resolved.
-function resolveInsertionOffset(byId, rootId, spans, source, parent, index, excludeChildId) {
+export function resolveInsertionOffset(byId, rootId, spans, source, parent, index, excludeChildId) {
   const children = parent.childIds.filter((id) => id !== excludeChildId).map((id) => byId.get(id));
   if (children.length === 0) {
     return childlessInsertionPoint(parent, rootId, spans, source);

@@ -218,7 +218,7 @@ function findImgTagBySrc(source, srcNeedle) {
  * Map a page path to candidate .astro files in src/pages/.
  * /about/ → [src/pages/about.astro, src/pages/about/index.astro]
  */
-function pathToAstroCandidates(projectRoot, pagePath) {
+export function pathToAstroCandidates(projectRoot, pagePath) {
   const normalized = pagePath.replace(/^\/|\/$/g, "") || "index";
   const pagesDir = join(projectRoot, "src", "pages");
   const candidates = [];
