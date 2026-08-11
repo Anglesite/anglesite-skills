@@ -212,3 +212,50 @@ describe("createTyped", () => {
     }
   });
 });
+
+describe("commitFile — no ambient git identity (#428)", () => {
+  // Reproduces the container guest environment from #428: no ~/.gitconfig, no
+  // GIT_AUTHOR/COMMITTER_NAME/EMAIL in the ambient environment. `git commit`'s own
+  // auto-detect fallback fails there too ("Please tell me who you are"), same as
+  // commit-tree — createPage/createPost/createTyped must supply their own identity
+  // rather than relying on it (see git-identity.mjs).
+  const identityKeys = [
+    "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+    "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM",
+  ];
+  let saved;
+
+  beforeEach(() => {
+    git(["config", "--unset", "user.email"]);
+    git(["config", "--unset", "user.name"]);
+    // Also isolate from this sandbox's own ~/.gitconfig and any system config, so the
+    // ambient environment matches the container guest in #428: no identity available
+    // from config OR env, anywhere.
+    saved = Object.fromEntries(identityKeys.map((k) => [k, process.env[k]]));
+    identityKeys.forEach((k) => delete process.env[k]);
+    process.env.GIT_CONFIG_GLOBAL = "/dev/null";
+    process.env.GIT_CONFIG_NOSYSTEM = "1";
+  });
+
+  afterEach(() => {
+    identityKeys.forEach((k) => {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    });
+  });
+
+  it("createPage still commits", () => {
+    const result = createPage(repo, { name: "About Us" });
+    expect(result.commit).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("createPost still commits", () => {
+    const result = createPost(repo, { title: "Hello, World!" });
+    expect(result.commit).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("createTyped still commits", () => {
+    const result = createTyped(repo, { type: "note", title: "Quick thought" });
+    expect(result.commit).toMatch(/^[0-9a-f]{40}$/);
+  });
+});

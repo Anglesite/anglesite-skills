@@ -15,6 +15,7 @@ import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { descriptorById } from "./content-types.mjs";
+import { ANGLESITE_COMMIT_IDENTITY } from "./git-identity.mjs";
 
 /**
  * Scaffold a new Astro page under `src/pages/`.
@@ -215,14 +216,24 @@ function renderEntry(descriptor, title, now = new Date()) {
  * Stage and commit exactly `relPath` on the current branch. Returns the new HEAD SHA, or null
  * on any failure (not a git repo, no prior commit, a pre-commit hook rejecting, git missing).
  * Commits a single pathspec so unrelated staged/working changes are left untouched.
+ *
+ * Passes `ANGLESITE_COMMIT_IDENTITY` on the commit itself: guest environments (e.g. the
+ * Anglesite-app container) have no `user.name`/`user.email` git config, and `git commit`'s
+ * own auto-detect fallback ("Please tell me who you are") fails there too — same root cause
+ * as #428, see `git-identity.mjs`.
  */
 function commitFile(projectRoot, relPath, message) {
-  const run = (args) =>
-    execFileSync("git", args, { cwd: projectRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const run = (args, env = {}) =>
+    execFileSync("git", args, {
+      cwd: projectRoot,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...env },
+    }).trim();
   try {
     run(["rev-parse", "--git-dir"]);
     run(["add", "--", relPath]);
-    run(["commit", "-m", message, "--", relPath]);
+    run(["commit", "-m", message, "--", relPath], ANGLESITE_COMMIT_IDENTITY);
     return run(["rev-parse", "HEAD"]);
   } catch {
     return null;
