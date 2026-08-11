@@ -73,6 +73,16 @@ describe("applyEditInputShape", () => {
       expect(applyEditSchema.safeParse({ ...validPayload, op }).success).toBe(true);
     }
   });
+
+  it("accepts insert-image as a valid op", () => {
+    const result = applyEditSchema.safeParse({
+      id: "e-1",
+      path: "/",
+      op: "insert-image",
+      value: { filename: "photo.jpg", mimeType: "image/jpeg", dataURL: "data:image/jpeg;base64,AA==" },
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("elementInfoSchema", () => {
