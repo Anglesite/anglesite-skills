@@ -35,7 +35,7 @@ import {
 import { join, dirname, basename, extname } from "node:path";
 import { Buffer } from "node:buffer";
 import { randomBytes } from "node:crypto";
-import { resolve as resolveEdit } from "./patcher.mjs";
+import { resolve as resolveEdit, pathToAstroCandidates } from "./patcher.mjs";
 import { optimizeImage } from "./optimize-images.mjs";
 import {
   createEditAppliedContent,
@@ -126,7 +126,7 @@ async function processImageDrop(projectRoot, edit) {
     throw new Error("image drop missing dataURL");
   }
 
-  const currentSrc = selector.textContent ?? "";
+  const currentSrc = selector?.textContent ?? "";
   let stem;
   const localMatch = currentSrc.match(/\/images\/([^/?#]+?)(?:\.[a-z0-9]+)?$/i);
   if (localMatch) {
@@ -307,7 +307,15 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
   let effectiveEdit = edit;
   let imageResult;
 
-  if (edit.op === "replace-image-src") {
+  // insert-image has no selector to match against, so unlike replace-image-src there's nothing
+  // stopping processImageDrop from writing+optimizing bytes to public/images/ even when the
+  // target page doesn't exist. Check the page resolves to exactly one .astro candidate first —
+  // resolveInsertImage would refuse the same way, but only after the (wasted) disk write.
+  if (edit.op === "insert-image" && pathToAstroCandidates(projectRoot, edit.path).length === 0) {
+    return failed(edit.id, "no-match", `no .astro file found for path ${edit.path}`);
+  }
+
+  if (edit.op === "replace-image-src" || edit.op === "insert-image") {
     try {
       imageResult = await processImageDrop(projectRoot, edit);
     } catch (err) {
@@ -315,7 +323,7 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
     }
     effectiveEdit = {
       ...edit,
-      value: { src: imageResult.src, srcset: imageResult.srcset },
+      value: { src: imageResult.src, srcset: imageResult.srcset, alt: edit.value?.alt },
     };
   }
 
