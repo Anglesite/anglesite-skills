@@ -46,6 +46,7 @@ export const editOps = [
   "replace-text",
   "replace-attr",
   "replace-image-src",
+  "insert-image",
   "edit-style",
   "apply-instruction",
   "set-style-property",
@@ -221,13 +222,13 @@ export const applyEditInputShape = {
   op: z
     .enum(editOps)
     .describe(
-      "Edit operation: replace-text (innerText), replace-attr (value is {name, value}), replace-image-src (value is {filename, mimeType, dataURL}), edit-style (value is {property, value}; merges a rule into the owning component's scoped <style>), apply-instruction (reserved: sent only by the Anglesite-app Foundation Models chat path; always returns edit-failed/needs-agent — do not use from external callers), set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr (component-structure ops), set-props-interface/set-script-zone (component-frontmatter ops), extract-component (nodeId + newName — writes a new src/components/<newName>.astro from the selected subtree, hoists obvious literal props, and replaces the selection in the source file with an instance + import — see componentEditSchema), and the WYSIWYG block-editor ops (same component-structure/text/style-token machinery, protocol-facing vocabulary, each returning a computed `inverse` for host-side undo): insertBlock (component.node or component.manifestBlock + parentId/index — insert a new element/component/slot/raw-markup node, or a blocks.manifest.json-registered block, as a child), moveBlock (component.nodeId + newParentId/newIndex — reparent/reorder an existing node), deleteBlock (component.nodeId — remove a node and its subtree), setProp (component.nodeId/name/value — set or, with value null, remove an attribute), editText (component.textNodeId/runs — replace an element/component/slot's inner content with re-serialized rich-text runs), setDesignToken (component.token/tokenValue — edit a global CSS custom property)",
+      "Edit operation: replace-text (innerText), replace-attr (value is {name, value}), replace-image-src (value is {filename, mimeType, dataURL}), insert-image (value is {filename, mimeType, dataURL, alt?}; inserts a brand-new <img> into the page identified by path — no selector, no existing image required), edit-style (value is {property, value}; merges a rule into the owning component's scoped <style>), apply-instruction (reserved: sent only by the Anglesite-app Foundation Models chat path; always returns edit-failed/needs-agent — do not use from external callers), set-style-property/remove-style-property/add-style-rule/set-rule-selector (component-style ops), insert-node/move-node/remove-node/set-attr (component-structure ops), set-props-interface/set-script-zone (component-frontmatter ops), extract-component (nodeId + newName — writes a new src/components/<newName>.astro from the selected subtree, hoists obvious literal props, and replaces the selection in the source file with an instance + import — see componentEditSchema), and the WYSIWYG block-editor ops (same component-structure/text/style-token machinery, protocol-facing vocabulary, each returning a computed `inverse` for host-side undo): insertBlock (component.node or component.manifestBlock + parentId/index — insert a new element/component/slot/raw-markup node, or a blocks.manifest.json-registered block, as a child), moveBlock (component.nodeId + newParentId/newIndex — reparent/reorder an existing node), deleteBlock (component.nodeId — remove a node and its subtree), setProp (component.nodeId/name/value — set or, with value null, remove an attribute), editText (component.textNodeId/runs — replace an element/component/slot's inner content with re-serialized rich-text runs), setDesignToken (component.token/tokenValue — edit a global CSS custom property)",
     ),
   value: z
     .unknown()
     .optional()
     .describe(
-      "Operation payload; varies by op (string for replace-text, {name, value} for replace-attr, {filename, mimeType, dataURL} for replace-image-src, {property, value} for edit-style, string for apply-instruction — the NL instruction text). Omitted for the component ops, whose payload is `component`.",
+      "Operation payload; varies by op (string for replace-text, {name, value} for replace-attr, {filename, mimeType, dataURL} for replace-image-src, {filename, mimeType, dataURL, alt?} for insert-image, {property, value} for edit-style, string for apply-instruction — the NL instruction text). Omitted for the component ops, whose payload is `component`.",
     ),
   dry_run: z
     .boolean()

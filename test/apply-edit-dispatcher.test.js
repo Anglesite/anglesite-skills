@@ -280,3 +280,134 @@ describe("replace-image-src", () => {
     expect(reply.reason).toBe("image-optimize-failed");
   });
 });
+
+describe("insert-image", () => {
+  let projectRoot;
+
+  beforeEach(() => {
+    projectRoot = mkdtempSync(join(tmpdir(), "anglesite-img-insert-"));
+    mkdirSync(join(projectRoot, "src/pages"), { recursive: true });
+    mkdirSync(join(projectRoot, "src/layouts"), { recursive: true });
+    writeFileSync(
+      join(projectRoot, "src/layouts/BaseLayout.astro"),
+      `---\ninterface Props { title: string }\nconst { title } = Astro.props;\n---\n<html><head><title>{title}</title></head><body><slot /></body></html>\n`,
+    );
+  });
+
+  afterEach(() => {
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  it("writes bytes, optimizes, inserts a new <img> inside the page's Layout, and returns result.src+srcset", async () => {
+    writeFileSync(
+      join(projectRoot, "src/pages/index.astro"),
+      `---\nimport BaseLayout from "../layouts/BaseLayout.astro";\n---\n\n<BaseLayout title="Home">\n  <h1>Welcome</h1>\n</BaseLayout>\n`,
+    );
+
+    const dropped = await sharp({ create: { width: 2000, height: 1500, channels: 3, background: { r: 10, g: 200, b: 10 } } })
+      .jpeg()
+      .toBuffer();
+    const dataURL = `data:image/jpeg;base64,${dropped.toString("base64")}`;
+
+    const result = await applyEdit(projectRoot, {
+      id: "e-1",
+      path: "/",
+      op: "insert-image",
+      value: { filename: "garden.jpg", mimeType: "image/jpeg", dataURL },
+    });
+
+    expect(result.isError).toBeUndefined();
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.type).toBe("anglesite:edit-applied");
+    expect(reply.result.src).toBe("/images/garden.webp");
+    expect(reply.result.srcset).toContain("480w");
+
+    const astro = readFileSync(join(projectRoot, "src/pages/index.astro"), "utf-8");
+    expect(astro).toContain('<img src="/images/garden.webp"');
+    // Lands inside BaseLayout, after the existing <h1>, not after </BaseLayout>.
+    const h1End = astro.indexOf("</h1>");
+    const imgStart = astro.indexOf("<img");
+    const layoutEnd = astro.indexOf("</BaseLayout>");
+    expect(imgStart).toBeGreaterThan(h1End);
+    expect(imgStart).toBeLessThan(layoutEnd);
+
+    expect(existsSync(join(projectRoot, "public/images/garden.webp"))).toBe(true);
+  });
+
+  it("uses the dropped filename's stem — there is no existing image to derive one from", async () => {
+    writeFileSync(
+      join(projectRoot, "src/pages/index.astro"),
+      `---\nimport BaseLayout from "../layouts/BaseLayout.astro";\n---\n\n<BaseLayout title="Home">\n  <h1>Welcome</h1>\n</BaseLayout>\n`,
+    );
+    const dropped = await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+      .png()
+      .toBuffer();
+    const dataURL = `data:image/png;base64,${dropped.toString("base64")}`;
+
+    const result = await applyEdit(projectRoot, {
+      id: "e-2",
+      path: "/",
+      op: "insert-image",
+      value: { filename: "team-photo.png", mimeType: "image/png", dataURL },
+    });
+
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.result.src).toBe("/images/team-photo.webp");
+  });
+
+  it("refuses with no-match when no .astro file exists for the path", async () => {
+    const result = await applyEdit(projectRoot, {
+      id: "e-3",
+      path: "/nowhere/",
+      op: "insert-image",
+      value: { filename: "x.jpg", mimeType: "image/jpeg", dataURL: "data:image/jpeg;base64,AA==" },
+    });
+
+    expect(result.isError).toBe(true);
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.type).toBe("anglesite:edit-failed");
+    expect(reply.reason).toBe("no-match");
+  });
+
+  it("returns image-optimize-failed when the dataURL bytes are corrupt", async () => {
+    writeFileSync(
+      join(projectRoot, "src/pages/index.astro"),
+      `---\nimport BaseLayout from "../layouts/BaseLayout.astro";\n---\n\n<BaseLayout title="Home">\n  <h1>Welcome</h1>\n</BaseLayout>\n`,
+    );
+
+    const result = await applyEdit(projectRoot, {
+      id: "e-4",
+      path: "/",
+      op: "insert-image",
+      value: { filename: "x.jpg", mimeType: "image/jpeg", dataURL: "data:image/jpeg;base64,not-valid-base64!!!" },
+    });
+
+    expect(result.isError).toBe(true);
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.reason).toBe("image-optimize-failed");
+  });
+
+  it("refuses dry_run with not-implemented and writes nothing to public/images/", async () => {
+    writeFileSync(
+      join(projectRoot, "src/pages/index.astro"),
+      `---\nimport BaseLayout from "../layouts/BaseLayout.astro";\n---\n\n<BaseLayout title="Home">\n  <h1>Welcome</h1>\n</BaseLayout>\n`,
+    );
+    const dropped = await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+      .jpeg()
+      .toBuffer();
+    const dataURL = `data:image/jpeg;base64,${dropped.toString("base64")}`;
+
+    const result = await applyEdit(projectRoot, {
+      id: "e-5",
+      path: "/",
+      op: "insert-image",
+      dry_run: true,
+      value: { filename: "preview.jpg", mimeType: "image/jpeg", dataURL },
+    });
+
+    expect(result.isError).toBe(true);
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.reason).toBe("not-implemented");
+    expect(existsSync(join(projectRoot, "public/images"))).toBe(false);
+  });
+});
