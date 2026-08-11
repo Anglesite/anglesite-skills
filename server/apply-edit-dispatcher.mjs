@@ -295,7 +295,7 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
 
   // dry_run is read-only. Image edits can't be previewed without writing optimized
   // bytes to disk, so refuse rather than violate the no-write invariant.
-  if (edit.dry_run && edit.op === "replace-image-src") {
+  if (edit.dry_run && (edit.op === "replace-image-src" || edit.op === "insert-image")) {
     return failed(edit.id, "not-implemented", "dry-run preview is not supported for image edits");
   }
   // Same reasoning for extract-component: its two-file write doesn't fit the single-window

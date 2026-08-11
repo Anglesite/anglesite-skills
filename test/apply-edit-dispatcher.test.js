@@ -386,4 +386,28 @@ describe("insert-image", () => {
     const reply = JSON.parse(result.content[0].text);
     expect(reply.reason).toBe("image-optimize-failed");
   });
+
+  it("refuses dry_run with not-implemented and writes nothing to public/images/", async () => {
+    writeFileSync(
+      join(projectRoot, "src/pages/index.astro"),
+      `---\nimport BaseLayout from "../layouts/BaseLayout.astro";\n---\n\n<BaseLayout title="Home">\n  <h1>Welcome</h1>\n</BaseLayout>\n`,
+    );
+    const dropped = await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+      .jpeg()
+      .toBuffer();
+    const dataURL = `data:image/jpeg;base64,${dropped.toString("base64")}`;
+
+    const result = await applyEdit(projectRoot, {
+      id: "e-5",
+      path: "/",
+      op: "insert-image",
+      dry_run: true,
+      value: { filename: "preview.jpg", mimeType: "image/jpeg", dataURL },
+    });
+
+    expect(result.isError).toBe(true);
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.reason).toBe("not-implemented");
+    expect(existsSync(join(projectRoot, "public/images"))).toBe(false);
+  });
 });
