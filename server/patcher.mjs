@@ -5,6 +5,7 @@ import { resolveComponentStyle } from "./component-style-edit.mjs";
 import { resolveComponentStructure } from "./component-structure-edit.mjs";
 import { resolveComponentFrontmatter } from "./component-frontmatter-edit.mjs";
 import { resolveComponentExtract } from "./component-extract-edit.mjs";
+import { resolveInsertImage } from "./insert-image-edit.mjs";
 import { resolveTextRuns } from "./text-run-edit.mjs";
 import { resolveDesignToken } from "./design-token-edit.mjs";
 import {
@@ -62,6 +63,9 @@ export async function resolve(projectRoot, edit) {
   }
   if (COMPONENT_EXTRACT_OPS.has(edit.op)) {
     return resolveComponentExtract(projectRoot, edit);
+  }
+  if (edit.op === "insert-image") {
+    return resolveInsertImage(projectRoot, edit);
   }
   if (COMPONENT_TEXT_OPS.has(edit.op)) {
     return resolveTextRuns(projectRoot, edit);
