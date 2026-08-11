@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, extname, basename, dirname } from "node:path";
+import { parse } from "@astrojs/compiler";
 import { rewriteAstroStyle } from "./style-edit.mjs";
+import { buildTemplateNodeIndex } from "./component-node-index.mjs";
 import { resolveComponentStyle } from "./component-style-edit.mjs";
 import { resolveComponentStructure } from "./component-structure-edit.mjs";
 import { resolveComponentFrontmatter } from "./component-frontmatter-edit.mjs";
@@ -39,9 +41,11 @@ import {
  * `@astrojs/compiler`, which is itself async. `resolveDesignToken`
  * (design-token-edit.mjs) is also declared `async` for signature consistency
  * with those siblings, but its own CSS parse (css-tree, via `walkCssRules`)
- * is synchronous — no real yield point there. Every other resolver here is
- * synchronous; awaiting their (non-Promise) return values is a no-op, so this
- * doesn't change their behavior.
+ * is synchronous — no real yield point there. `resolveAstro` is async too:
+ * its structural fallback (locating an element by tag + nthChild when
+ * selector.textContent is absent) also parses with `@astrojs/compiler`.
+ * `resolveMdoc` and `resolveKeystatic` remain synchronous; awaiting their
+ * (non-Promise) return values in the `resolvers` loop below is a no-op.
  *
  * @param {string} projectRoot
  * @param {{ path: string, selector: object, op: string, value?: unknown, component?: object }} edit
@@ -73,7 +77,7 @@ export async function resolve(projectRoot, edit) {
   let bestRefusal = /** @type {ResolveRefusal | null} */ (null);
 
   for (const resolver of resolvers) {
-    const result = resolver(projectRoot, edit);
+    const result = await resolver(projectRoot, edit);
     if (!result.refused) return result;
     if (!bestRefusal || refusalPriority(result.reason) > refusalPriority(bestRefusal.reason)) {
       bestRefusal = result;
@@ -511,7 +515,92 @@ function resolveStyle(projectRoot, edit) {
   return { file, range: { start: 0, end: source.length }, replacement: r.next };
 }
 
-function resolveAstro(projectRoot, edit) {
+/**
+ * Structural fallback for when selector.textContent is absent: locate the
+ * Nth <tag> element in the template — "Nth" meaning position among ALL
+ * sibling elements/components, matching the CSS :nth-child semantics that
+ * selector.mjs's buildSelector encodes nthChild with — and derive the
+ * element's current text or attribute value to use as the search needle
+ * the rest of resolveAstro already knows how to work with.
+ *
+ * Only resolves when the value is statically known and unique:
+ *  - replace-text: the element's sole child must be a plain text node.
+ *    Mixed, nested, or dynamic-expression content can't be safely
+ *    reconstructed as a single contiguous source needle.
+ *  - replace-attr / replace-image-src: the named attribute must be a
+ *    literal quoted string, not a dynamic expression.
+ * Returns the derived needle string, or null if no safe unique match exists
+ * (caller falls through to the existing "nothing to search for" refusal).
+ */
+async function deriveStructuralNeedle(source, selector, op, attrName) {
+  const tag = selector.tag?.toLowerCase();
+  if (!tag || !Number.isInteger(selector.nthChild)) return null;
+
+  const templateStart = findAstroTemplateStart(source);
+  const template = source.slice(templateStart);
+
+  let ast;
+  try {
+    ({ ast } = await parse(template, { position: true }));
+  } catch {
+    return null;
+  }
+  const { byId } = buildTemplateNodeIndex(ast, template);
+
+  const candidates = [];
+  for (const node of byId.values()) {
+    if (node.kind !== "element" && node.kind !== "component") continue;
+    if (node.tag?.toLowerCase() !== tag) continue;
+    if (nthChildIndex(byId, node) !== selector.nthChild) continue;
+    candidates.push(node);
+  }
+  if (candidates.length !== 1) return null;
+  const [target] = candidates;
+
+  if (op === "replace-attr" || op === "replace-image-src") {
+    const attr = target.attrs.find((a) => a.name === attrName && a.kind === "quoted");
+    return attr ? attr.value : null;
+  }
+
+  if (target.childIds.length !== 1) return null;
+  const onlyChild = byId.get(target.childIds[0]);
+  if (onlyChild.kind !== "text") return null;
+  const [start, end] = onlyChild.span;
+  if (start == null || end == null) return null;
+  return template.slice(start, end).trim();
+}
+
+/** Position of `node` among its parent's element/component children, 1-indexed —
+ *  mirrors CSS :nth-child, which counts sibling elements regardless of tag. */
+function nthChildIndex(byId, node) {
+  const parent = byId.get(node.parentId);
+  if (!parent) return null;
+  let idx = 0;
+  for (const cid of parent.childIds) {
+    const c = byId.get(cid);
+    if (c.kind !== "element" && c.kind !== "component") continue;
+    idx++;
+    if (cid === node.id) return idx;
+  }
+  return null;
+}
+
+/** Try each candidate file's structural fallback in turn; use the first hit. */
+async function deriveStructuralNeedleFromCandidates(candidates, selector, op, attrName) {
+  for (const file of candidates) {
+    let source;
+    try {
+      source = readFileSync(file, "utf-8");
+    } catch {
+      continue;
+    }
+    const needle = await deriveStructuralNeedle(source, selector, op, attrName);
+    if (needle) return needle;
+  }
+  return null;
+}
+
+async function resolveAstro(projectRoot, edit) {
   const { path: pagePath, selector, op, value } = edit;
   const candidates = pathToAstroCandidates(projectRoot, pagePath);
 
@@ -520,7 +609,10 @@ function resolveAstro(projectRoot, edit) {
   }
 
   if (op === "replace-image-src") {
-    const currentSrc = selector.textContent;
+    let currentSrc = selector.textContent;
+    if (!currentSrc) {
+      currentSrc = await deriveStructuralNeedleFromCandidates(candidates, selector, op, "src");
+    }
     if (!currentSrc) {
       return refuse("no-match", "no current src to find in .astro files");
     }
@@ -552,7 +644,11 @@ function resolveAstro(projectRoot, edit) {
   }
 
   const textContent = selector.textContent;
-  const needle = op === "replace-text" ? textContent : getAttrSearchValue(op, selector, value);
+  let needle = op === "replace-text" ? textContent : getAttrSearchValue(op, selector, value);
+  if (!needle && (op === "replace-text" || op === "replace-attr")) {
+    const attrName = op === "replace-attr" && value && typeof value === "object" ? value.name : null;
+    needle = await deriveStructuralNeedleFromCandidates(candidates, selector, op, attrName);
+  }
   if (!needle) {
     return refuse("no-match", "nothing to search for in .astro files");
   }
