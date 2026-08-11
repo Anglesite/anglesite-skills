@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { parse } from "@astrojs/compiler";
 import { buildTemplateNodeIndex } from "./component-node-index.mjs";
-import { resolveAllSpans, resolveInsertionOffset, escapeAttr } from "./component-structure-edit.mjs";
+import { resolveAllSpans, resolveInsertionOffset, escapeAttr, SpanResolutionError } from "./component-structure-edit.mjs";
 import { pathToAstroCandidates } from "./patcher.mjs";
 
 function refuse(reason, detail) {
@@ -67,7 +67,8 @@ export async function resolveInsertImage(projectRoot, edit) {
   let spans;
   try {
     spans = resolveAllSpans(byId, rootId, source);
-  } catch {
+  } catch (err) {
+    if (!(err instanceof SpanResolutionError)) throw err;
     return refuse(
       "no-match",
       "could not lexically re-locate the page's structure without trusting compiler offsets — refusing rather than risking corruption",
