@@ -24,6 +24,63 @@ function makeEdit(overrides = {}) {
   };
 }
 
+// ── Content-frontmatter image resolver ────────────────────────────
+
+describe("frontmatter image resolver", () => {
+  it("quoted frontmatter value → returns correct {file, range, replacement}", async () => {
+    const result = await resolve(FIXTURE_ROOT, {
+      path: "/photos/hello-photo/",
+      selector: { tag: "IMG", classes: [], nthChild: 1, textContent: "/images/hello.svg" },
+      op: "replace-image-src",
+      value: { src: "/images/hello.webp", srcset: "" },
+    });
+    expect(result.refused).toBeUndefined();
+    expect(result.file).toBe("src/content/photos/hello-photo.md");
+    expect(result.replacement).toBe("/images/hello.webp");
+
+    const source = readFileSync(resolvePath(FIXTURE_ROOT, result.file), "utf-8");
+    const matched = source.slice(result.range.start, result.range.end);
+    expect(matched).toBe("/images/hello.svg");
+  });
+
+  it("unquoted plain-scalar frontmatter value → returns correct {file, range, replacement}", async () => {
+    const result = await resolve(FIXTURE_ROOT, {
+      path: "/photos/unquoted-photo/",
+      selector: { tag: "IMG", classes: [], nthChild: 1, textContent: "/images/unquoted.png" },
+      op: "replace-image-src",
+      value: { src: "/images/unquoted.webp", srcset: "" },
+    });
+    expect(result.refused).toBeUndefined();
+    expect(result.file).toBe("src/content/photos/unquoted-photo.md");
+
+    const source = readFileSync(resolvePath(FIXTURE_ROOT, result.file), "utf-8");
+    const matched = source.slice(result.range.start, result.range.end);
+    expect(matched).toBe("/images/unquoted.png");
+  });
+
+  it("no match in any content frontmatter → refuses with reason: no-match", async () => {
+    const result = await resolve(FIXTURE_ROOT, {
+      path: "/photos/hello-photo/",
+      selector: { tag: "IMG", classes: [], nthChild: 1, textContent: "/images/does-not-exist.svg" },
+      op: "replace-image-src",
+      value: { src: "/images/whatever.webp", srcset: "" },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("no-match");
+  });
+
+  it("value shared by two content files → refuses with reason: ambiguous", async () => {
+    const result = await resolve(FIXTURE_ROOT, {
+      path: "/photos/duplicate-photo/",
+      selector: { tag: "IMG", classes: [], nthChild: 1, textContent: "/images/shared.jpg" },
+      op: "replace-image-src",
+      value: { src: "/images/whatever.webp", srcset: "" },
+    });
+    expect(result.refused).toBe(true);
+    expect(result.reason).toBe("ambiguous");
+  });
+});
+
 // ── .mdoc resolver ────────────────────────────────────────────────
 
 describe("mdoc resolver", () => {
