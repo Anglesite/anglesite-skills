@@ -17,7 +17,10 @@
  *      a sibling temp file then `rename`), invoke an optional `onApplied` hook so #298's
  *      `edit-history.mjs` can commit to the hidden `anglesite/edits` branch and thread its SHA
  *      back as `commit`, then return `edit-applied` — with `result: {src, srcset}` for the
- *      image-drop path.
+ *      image-drop path. Image ops pass `onApplied` the multi-file `{files: [...]}` shape (source
+ *      patch + every optimized asset `processImageDrop` wrote) rather than the single-file
+ *      `{file, range}` shape every other op uses, so the commit actually carries the bytes the
+ *      patched `<img>` references (#1422).
  *   5. On any filesystem error: return `edit-failed` with reason `write-failed`.
  *
  * The handler stays a pure async function so it's unit-testable independent of the MCP
@@ -118,7 +121,14 @@ function mimeToExt(mime) {
  * Falls back to the dropped filename's stem when the target src is external
  * (http(s)://…) or otherwise can't be parsed to a /images/ path.
  *
- * @returns {Promise<{ src: string, srcset: string }>}
+ * `assets` lists the optimized binaries' paths relative to `projectRoot` — the primary WebP
+ * plus every responsive variant. The caller threads these into `onApplied({files: [...]})` so
+ * the hidden `anglesite/edits` commit (and, for container-backed runtimes, the host repo it's
+ * persisted onto) actually carries the bytes the patched `<img>` now references, not just the
+ * source-file patch (#1422 — a "successful" image edit previously committed a source file
+ * pointing at asset bytes that never made it to the host).
+ *
+ * @returns {Promise<{ src: string, srcset: string, assets: string[] }>}
  */
 async function processImageDrop(projectRoot, edit) {
   const { selector, value } = edit;
@@ -180,7 +190,11 @@ async function processImageDrop(projectRoot, edit) {
   const srcset = optimized.variants
     .map((v) => `/images/${v.file} ${v.width}w`)
     .join(", ");
-  return { src, srcset };
+  const assets = [
+    `public/images/${optimized.primary}`,
+    ...optimized.variants.map((v) => `public/images/${v.file}`),
+  ];
+  return { src, srcset, assets };
 }
 
 /**
@@ -379,7 +393,16 @@ export async function applyEdit(projectRoot, edit, opts = {}) {
   let commit;
   if (opts.onApplied) {
     try {
-      commit = await opts.onApplied({ file, range, projectRoot });
+      // Image ops (imageResult set) must commit the optimized binaries alongside the source
+      // patch — see processImageDrop's `assets` doc comment (#1422). Reuse extract-component's
+      // multi-file `{files: [...]}` shape rather than a third onApplied payload variant.
+      commit = imageResult
+        ? await opts.onApplied({
+            files: [file, ...imageResult.assets],
+            projectRoot,
+            message: `anglesite: ${edit.op === "insert-image" ? "insert" : "replace"} image in ${file}`,
+          })
+        : await opts.onApplied({ file, range, projectRoot });
     } catch (err) {
       // Patch landed on disk but history-keeping failed. Surface as a successful apply with no
       // commit SHA — the user-visible source change is real; #298 can decide its own policy.
