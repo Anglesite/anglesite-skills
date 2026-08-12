@@ -30,9 +30,10 @@ import {
  *
  * Tries resolvers in priority order: edit-style → component-style ops →
  * component-structure ops → component-frontmatter ops → component-extract op →
- * editText → setDesignToken → .mdoc → Keystatic YAML/JSON → .astro. Returns
- * the first non-refusal. If all refuse, returns the most informative refusal
- * (from the highest-priority resolver that had an opinion).
+ * editText → setDesignToken → content-frontmatter image → .mdoc → Keystatic
+ * YAML/JSON → .astro. Returns the first non-refusal. If all refuse, returns
+ * the most informative refusal (from the highest-priority resolver that had
+ * an opinion).
  *
  * Async because `resolveComponentStyle` (component-style-edit.mjs),
  * `resolveComponentStructure` (component-structure-edit.mjs),
@@ -45,8 +46,9 @@ import {
  * is synchronous — no real yield point there. `resolveAstro` is async too:
  * its structural fallback (locating an element by tag + nthChild when
  * selector.textContent is absent) also parses with `@astrojs/compiler`.
- * `resolveMdoc` and `resolveKeystatic` remain synchronous; awaiting their
- * (non-Promise) return values in the `resolvers` loop below is a no-op.
+ * `resolveFrontmatterImage`, `resolveMdoc`, and `resolveKeystatic` remain
+ * synchronous; awaiting their (non-Promise) return values in the `resolvers`
+ * loop below is a no-op.
  *
  * @param {string} projectRoot
  * @param {{ path: string, selector: object, op: string, value?: unknown, component?: object }} edit
@@ -77,7 +79,7 @@ export async function resolve(projectRoot, edit) {
   if (DESIGN_TOKEN_OPS.has(edit.op)) {
     return resolveDesignToken(projectRoot, edit);
   }
-  const resolvers = [resolveMdoc, resolveKeystatic, resolveAstro];
+  const resolvers = [resolveFrontmatterImage, resolveMdoc, resolveKeystatic, resolveAstro];
   let bestRefusal = /** @type {ResolveRefusal | null} */ (null);
 
   for (const resolver of resolvers) {
@@ -255,6 +257,90 @@ export function pathToAstroCandidates(projectRoot, pagePath) {
 function extractSlug(pagePath) {
   const segments = pagePath.replace(/^\/|\/$/g, "").split("/");
   return segments[segments.length - 1] || "";
+}
+
+// ── Content-frontmatter image resolver ──────────────────────────────
+
+/**
+ * Resolve replace-image-src edits against Markdown/MDX content-collection
+ * frontmatter, e.g. `image: "/images/hello.svg"`. Covers the case the other
+ * resolvers can't reach: a layout that renders a frontmatter field through a
+ * dynamic expression (`<img src={d.image} />`), so there's no literal `<img
+ * src="…">` tag for `resolveAstro` to find and no `.mdoc` body text for
+ * `resolveMdoc` to match. Matches on the field's *value*, not its name —
+ * different collections may store an image path under different keys.
+ */
+function resolveFrontmatterImage(projectRoot, edit) {
+  if (edit.op !== "replace-image-src") {
+    return refuse("no-match", "frontmatter image resolver only handles replace-image-src");
+  }
+  const { selector, value } = edit;
+  const currentSrc = getAttrSearchValue(edit.op, selector, value);
+  if (!currentSrc) {
+    return refuse("no-match", "no current src to find in content frontmatter");
+  }
+
+  const contentDir = join(projectRoot, "src", "content");
+  const mdFiles = walkFiles(contentDir, (name) => extname(name) === ".md" || extname(name) === ".mdx");
+  if (mdFiles.length === 0) {
+    return refuse("no-match", "no .md/.mdx content files found");
+  }
+
+  const allMatches = [];
+  for (const file of mdFiles) {
+    let source;
+    try {
+      source = readFileSync(file, "utf-8");
+    } catch {
+      continue;
+    }
+    const frontmatterEnd = findFrontmatterEnd(source);
+    if (frontmatterEnd === 0) continue;
+    const range = findFrontmatterFieldValue(source.slice(0, frontmatterEnd), currentSrc);
+    if (range) {
+      allMatches.push({ file: relative(projectRoot, file), range });
+    }
+  }
+
+  if (allMatches.length === 0) {
+    return refuse("no-match", `no frontmatter field matches src="${currentSrc}"`);
+  }
+  if (allMatches.length > 1) {
+    return refuse("ambiguous", `${allMatches.length} content files have a frontmatter field matching src="${currentSrc}"`);
+  }
+
+  return {
+    file: allMatches[0].file,
+    range: allMatches[0].range,
+    replacement: value && typeof value === "object" ? String(value.src ?? "") : "",
+  };
+}
+
+/**
+ * Find the value range of a top-level YAML frontmatter field whose value is
+ * exactly `needle` — quoted (`image: "/x.svg"` or `image: '/x.svg'`) or a
+ * plain scalar (`image: /x.svg`). Returns the range of the value only (quotes
+ * excluded, mirroring resolveKeystatic's findValueInDataFile), or null.
+ */
+function findFrontmatterFieldValue(frontmatter, needle) {
+  const quotedRe = /^([ \t]*[\w-]+:[ \t]*)(["'])((?:(?!\2).)*)\2[ \t]*$/gm;
+  let m;
+  while ((m = quotedRe.exec(frontmatter)) !== null) {
+    if (m[3] === needle) {
+      const valueStart = m.index + m[1].length + 1;
+      return { start: valueStart, end: valueStart + m[3].length };
+    }
+  }
+
+  const plainRe = /^([ \t]*[\w-]+:[ \t]+)(\S+)[ \t]*$/gm;
+  while ((m = plainRe.exec(frontmatter)) !== null) {
+    if (m[2] === needle) {
+      const valueStart = m.index + m[1].length;
+      return { start: valueStart, end: valueStart + m[2].length };
+    }
+  }
+
+  return null;
 }
 
 // ── .mdoc resolver ────────────────────────────────────────────────
