@@ -121,8 +121,10 @@ export function buildServer(projectRoot) {
   // invokes `onApplied` after a successful patch — `recordEdit` commits onto refs/heads/anglesite/edits
   // without touching HEAD/index/working-tree and returns the SHA, which the dispatcher threads
   // back as `commit` on the edit-applied response. `onApplied` is called with `{file, range}` for
-  // every single-file op, or `{files, message}` for extract-component's two-file write (Component
-  // Editor slice 5, Anglesite-app#495) — `recordEdit`'s `files` mode commits both onto ONE commit.
+  // every single-file op, or `{files, message}` for ops that touch more than one path on disk:
+  // extract-component's two-file write (Component Editor slice 5, Anglesite-app#495), and
+  // insert-image/replace-image-src's source patch + optimized asset bytes (Anglesite-app#1422)
+  // — `recordEdit`'s `files` mode commits every listed path onto ONE commit.
   server.registerTool(
     "apply_edit",
     {

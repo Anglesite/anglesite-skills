@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, cpSync, readFileSync, rmSync, chmodSync, statSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve as resolvePath } from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import sharp from "sharp";
 import { applyEdit } from "../server/apply-edit-dispatcher.mjs";
+import { recordEdit } from "../server/edit-history.mjs";
 
 const FIXTURE = resolvePath(import.meta.dirname, "fixtures/patcher");
 let root;
@@ -22,6 +23,15 @@ function makeEdit(overrides = {}) {
 
 function parseContent(response) {
   return JSON.parse(response.content[0].text);
+}
+
+// Mirrors server/index-tools.mjs's production `onApplied` wiring: single-file ops record
+// `{file, range}`, multi-file ops (extract-component, and image ops per #1422) record `{files}`.
+function wireOnApplied(projectRoot) {
+  return ({ file, range, files, message }) =>
+    files
+      ? recordEdit(projectRoot, { files, message })
+      : recordEdit(projectRoot, { file, range, message: `anglesite: edit ${file}` });
 }
 
 beforeEach(() => {
@@ -228,6 +238,64 @@ describe("replace-image-src", () => {
     expect(preserved.width).toBe(100);
   });
 
+  it("commits the optimized image assets alongside the source patch, not just the source patch (#1422)", async () => {
+    mkdirSync(join(projectRoot, "src/pages"), { recursive: true });
+    mkdirSync(join(projectRoot, "public/images"), { recursive: true });
+    writeFileSync(
+      join(projectRoot, "src/pages/about.astro"),
+      `<img src="/images/hero.jpg" alt="Hero" />`,
+    );
+    await sharp({ create: { width: 100, height: 100, channels: 3, background: { r: 0, g: 0, b: 255 } } })
+      .jpeg()
+      .toFile(join(projectRoot, "public/images/hero.jpg"));
+    execSync("git add .", { cwd: projectRoot });
+    execSync("git commit -q -m fixture", { cwd: projectRoot });
+
+    const dropped = await sharp({ create: { width: 2000, height: 1500, channels: 3, background: { r: 255, g: 128, b: 0 } } })
+      .jpeg()
+      .toBuffer();
+    const dataURL = `data:image/jpeg;base64,${dropped.toString("base64")}`;
+
+    let captured;
+    const result = await applyEdit(
+      projectRoot,
+      {
+        id: "e-img-commit",
+        path: "/about/",
+        selector: { tag: "IMG", classes: [], nthChild: 1, textContent: "/images/hero.jpg" },
+        op: "replace-image-src",
+        value: { filename: "vacation.jpg", mimeType: "image/jpeg", dataURL },
+      },
+      {
+        onApplied: (info) => {
+          captured = info;
+          return wireOnApplied(projectRoot)(info);
+        },
+      },
+    );
+
+    // onApplied got the multi-file shape, not the single-file {file, range} shape — that's the
+    // bug: passing {file, range} silently drops the asset bytes from the commit.
+    expect(captured.file).toBeUndefined();
+    expect(captured.files).toEqual(
+      expect.arrayContaining(["src/pages/about.astro", "public/images/hero.webp", "public/images/hero-480w.webp"]),
+    );
+
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.commit).toBeTruthy();
+
+    // The commit's tree actually carries the asset bytes, not just the source patch — verifying
+    // via `git show`, not just the in-memory `files` array, in case recordEdit's tree-building
+    // silently dropped one.
+    const committedFiles = execFileSync("git", ["ls-tree", "-r", "--name-only", reply.commit], {
+      cwd: projectRoot,
+      encoding: "utf-8",
+    }).split("\n");
+    expect(committedFiles).toEqual(
+      expect.arrayContaining(["src/pages/about.astro", "public/images/hero.webp", "public/images/hero-480w.webp"]),
+    );
+  });
+
   it("falls back to dropped filename when target src is external", async () => {
     mkdirSync(join(projectRoot, "src/pages"), { recursive: true });
     mkdirSync(join(projectRoot, "public/images"), { recursive: true });
@@ -332,6 +400,56 @@ describe("insert-image", () => {
     expect(imgStart).toBeLessThan(layoutEnd);
 
     expect(existsSync(join(projectRoot, "public/images/garden.webp"))).toBe(true);
+  });
+
+  it("commits the optimized image assets alongside the source patch, not just the source patch (#1422)", async () => {
+    writeFileSync(
+      join(projectRoot, "src/pages/index.astro"),
+      `---\nimport BaseLayout from "../layouts/BaseLayout.astro";\n---\n\n<BaseLayout title="Home">\n  <h1>Welcome</h1>\n</BaseLayout>\n`,
+    );
+    execSync("git init -q -b main", { cwd: projectRoot });
+    execSync("git config user.email test@example.com", { cwd: projectRoot });
+    execSync("git config user.name Test", { cwd: projectRoot });
+    execSync("git add .", { cwd: projectRoot });
+    execSync("git commit -q -m fixture", { cwd: projectRoot });
+
+    const dropped = await sharp({ create: { width: 2000, height: 1500, channels: 3, background: { r: 10, g: 200, b: 10 } } })
+      .jpeg()
+      .toBuffer();
+    const dataURL = `data:image/jpeg;base64,${dropped.toString("base64")}`;
+
+    let captured;
+    const result = await applyEdit(
+      projectRoot,
+      {
+        id: "e-insert-commit",
+        path: "/",
+        op: "insert-image",
+        value: { filename: "garden.jpg", mimeType: "image/jpeg", dataURL },
+      },
+      {
+        onApplied: (info) => {
+          captured = info;
+          return wireOnApplied(projectRoot)(info);
+        },
+      },
+    );
+
+    expect(captured.file).toBeUndefined();
+    expect(captured.files).toEqual(
+      expect.arrayContaining(["src/pages/index.astro", "public/images/garden.webp", "public/images/garden-480w.webp"]),
+    );
+
+    const reply = JSON.parse(result.content[0].text);
+    expect(reply.commit).toBeTruthy();
+
+    const committedFiles = execFileSync("git", ["ls-tree", "-r", "--name-only", reply.commit], {
+      cwd: projectRoot,
+      encoding: "utf-8",
+    }).split("\n");
+    expect(committedFiles).toEqual(
+      expect.arrayContaining(["src/pages/index.astro", "public/images/garden.webp", "public/images/garden-480w.webp"]),
+    );
   });
 
   it("uses the dropped filename's stem — there is no existing image to derive one from", async () => {
