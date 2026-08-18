@@ -34,7 +34,11 @@ function loadSharp() {
 
 /**
  * Optimize a single image: write a primary WebP plus responsive variants,
- * stripping EXIF metadata. Idempotent on re-run.
+ * stripping EXIF metadata (e.g. GPS location) but keeping XMP (e.g. an
+ * Anglesite-app-embedded license, #999 — LicenseMetadataEmbedder writes
+ * license info as XMP before the file ever reaches this function, and it
+ * would otherwise be silently lost in the WebP re-encode). Idempotent on
+ * re-run.
  *
  * @param {string} inputFile - absolute path to a source image (.jpg/.png/.heic/etc)
  * @param {{
@@ -75,6 +79,7 @@ export async function optimizeImage(inputFile, options) {
     const out = join(outputDir, file);
     const info = await sharp(inputFile)
       .rotate()
+      .keepXmp()
       .resize({ width, withoutEnlargement: true })
       .webp({ quality: 80 })
       .toFile(out);
@@ -85,6 +90,7 @@ export async function optimizeImage(inputFile, options) {
   const primary = `${stem}.webp`;
   await sharp(inputFile)
     .rotate()
+    .keepXmp()
     .resize({ width: primaryWidth, withoutEnlargement: true })
     .webp({ quality: 80 })
     .toFile(join(outputDir, primary));

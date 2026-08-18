@@ -51,6 +51,30 @@ describe("optimizeImage", () => {
     expect(meta.exif).toBeUndefined();
   });
 
+  it("preserves XMP metadata (e.g. an Anglesite-app-embedded license) while still stripping EXIF (#999)", async () => {
+    const xmpPacket =
+      `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
+      `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
+      `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+      `<rdf:Description rdf:about="" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" ` +
+      `xmpRights:WebStatement="https://creativecommons.org/licenses/by/4.0/"/>` +
+      `</rdf:RDF></x:xmpmeta>` +
+      `<?xpacket end="w"?>`;
+    const licensedFile = join(dir, "licensed-photo.jpg");
+    await sharp({ create: { width: 2400, height: 1600, channels: 3, background: { r: 0, g: 128, b: 255 } } })
+      .withMetadata({ exif: { IFD0: { Make: "Anglesite Test" } } })
+      .withXmp(xmpPacket)
+      .jpeg()
+      .toFile(licensedFile);
+
+    const result = await optimizeImage(licensedFile, { outputDir: dir, widths: [480] });
+    const meta = await sharp(join(dir, result.primary)).metadata();
+
+    expect(meta.exif).toBeUndefined();
+    expect(meta.xmp).toBeDefined();
+    expect(meta.xmp.toString("utf8")).toContain("https://creativecommons.org/licenses/by/4.0/");
+  });
+
   it("preserves the original under originals/ before overwriting", async () => {
     const result = await optimizeImage(join(dir, "photo.jpg"), {
       outputDir: dir,
