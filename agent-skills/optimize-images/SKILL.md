@@ -1,13 +1,13 @@
 ---
 name: optimize-images
-description: "Optimize images: resize, convert to WebP, strip EXIF, generate srcset variants"
+description: "Optimize images: resize, convert to WebP, strip EXIF, generate srcset variants. Use when pages load slowly because of large photos, or the owner adds new images that need resizing, WebP conversion, or location data removed."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run ai-optimize), Bash(npx wrangler r2 *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, Write, Read, Edit, Glob
+allowed-tools: "Bash(npm run ai-optimize) Bash(npx wrangler r2 *) mcp__cloudflare__r2_bucket_create mcp__cloudflare__r2_bucket_get mcp__cloudflare__r2_buckets_list Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

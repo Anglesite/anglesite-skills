@@ -1,8 +1,13 @@
 ---
 name: freedesignmd
 description: "Browse, fetch, and apply a design system from freedesignmd.com to the project"
+when_to_use: "Use when the owner wants to browse ready-made design systems or mentions freedesignmd.com."
 user-invocable: false
 allowed-tools: WebFetch, Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Apply a design system from [freedesignmd.com](https://freedesignmd.com) — a free catalog of 121+ `DESIGN.md` files. Called by the start, themes, design-interview, and design-import skills. Not invoked directly by the owner.

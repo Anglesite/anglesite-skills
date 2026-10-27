@@ -1,13 +1,13 @@
 ---
 name: email
-description: "Set up business email: Apple-first provider recommendation, DNS pre-fill, tier routing"
+description: "Set up business email: Apple-first provider recommendation, DNS pre-fill, tier routing. Use when the owner wants a professional email address at their own domain or needs help choosing an email provider."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(curl *), Write, Read
+allowed-tools: "Bash(curl *) Write Read"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

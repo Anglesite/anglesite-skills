@@ -17,3 +17,6 @@ dist/
 
 # Worktrees
 .worktrees/
+
+# Bundled template copies in the agent-skills export keep the template lockfile
+!agent-skills/*/references/template/package-lock.json

@@ -1,8 +1,13 @@
 ---
 name: search
 description: "Add on-site search so visitors can find content quickly"
+when_to_use: "Use when the site has enough pages or posts that visitors need a search box to find things."
 allowed-tools: Bash(npm install *), Bash(npm run build), Bash(npx astro check), Write, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add on-site search powered by Pagefind. Builds a search index at build time from the site's static HTML output. Visitors search entirely client-side with no external API, no account, and no ongoing cost. The ~6 KB JavaScript loader only runs on the `/search` page.

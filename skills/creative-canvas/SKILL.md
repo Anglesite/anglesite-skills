@@ -1,9 +1,14 @@
 ---
 name: creative-canvas
 description: "Add interactive visual effects and creative coding to any page"
+when_to_use: "Use when the owner wants something visually striking — generative art, particle effects, interactive backgrounds, or other creative coding on a page."
 user-invocable: false
 argument-hint: "[effect description or library name]"
 allowed-tools: Bash(npm install *), Bash(npm run dev), Bash(npm run build), Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add interactive visual effects, generative art, or creative coding experiments to any Anglesite site. Works for all business types — from a bakery wanting holiday snow to a web artist building a full experiment gallery.

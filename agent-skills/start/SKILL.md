@@ -1,13 +1,13 @@
 ---
 name: start
-description: "First-time setup: discovery, design, tools, preview"
+description: "First-time setup: discovery, design, tools, preview. Use when someone wants to create a new website, or the current folder has no Anglesite site yet."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(zsh *), Bash(npm install), Bash(npm run *), Bash(gh *), Bash(git remote *), Bash(git push *), Bash(git branch *), Bash(git add *), Bash(git commit *), WebFetch, Write, Read, Glob
+allowed-tools: "Bash(zsh *) Bash(npm install) Bash(npm run *) Bash(gh *) Bash(git remote *) Bash(git push *) Bash(git branch *) Bash(git add *) Bash(git commit *) WebFetch Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

@@ -1,8 +1,13 @@
 ---
 name: optimize-images
 description: "Optimize images: resize, convert to WebP, strip EXIF, generate srcset variants"
+when_to_use: "Use when pages load slowly because of large photos, or the owner adds new images that need resizing, WebP conversion, or location data removed."
 user-invocable: false
 allowed-tools: Bash(npm run ai-optimize), Bash(npx wrangler r2 *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Optimize images in `public/images/` for web performance and privacy. Called automatically when images are added during design, page creation, or content editing — not invoked directly by the owner.

@@ -1,13 +1,13 @@
 ---
 name: donations
-description: "Add a donation button or page (Stripe, Liberapay, or GitHub Sponsors) with suggested amounts, recurring defaults, optional goal widget, and 501(c)(3) tax-receipt template"
+description: "Add a donation button or page (Stripe, Liberapay, or GitHub Sponsors) with suggested amounts, recurring defaults, optional goal widget, and 501(c)(3) tax-receipt template. Use when a nonprofit, creator, or open-source project wants to accept donations or sponsorships, or needs a tax-receipt template."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Write, Read, Edit, Glob
+allowed-tools: "Bash(npm run build) Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

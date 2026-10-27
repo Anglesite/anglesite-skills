@@ -1,13 +1,13 @@
 ---
 name: inbox
-description: "Browse, triage, and export form submissions from Keystatic instead of digging through email"
+description: "Browse, triage, and export form submissions from Keystatic instead of digging through email. Use when the owner asks to see, sort, answer, or export messages and submissions that came in through site forms."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run *), Bash(npx wrangler *), Bash(grep *), Write, Read, Edit, Glob, mcp__cloudflare__accounts_list, mcp__cloudflare__set_active_account, mcp__cloudflare__d1_database_create, mcp__cloudflare__d1_databases_list, mcp__cloudflare__d1_database_get, mcp__cloudflare__d1_database_query
+allowed-tools: "Bash(npm run *) Bash(npx wrangler *) Bash(grep *) Write Read Edit Glob mcp__cloudflare__accounts_list mcp__cloudflare__set_active_account mcp__cloudflare__d1_database_create mcp__cloudflare__d1_databases_list mcp__cloudflare__d1_database_get mcp__cloudflare__d1_database_query"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

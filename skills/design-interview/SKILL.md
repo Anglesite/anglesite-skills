@@ -1,8 +1,13 @@
 ---
 name: design-interview
 description: "Redo the visual identity and branding"
+when_to_use: "Use when the owner wants to change the look and feel, rebrand, or pick new colors, fonts, or overall visual style."
 user-invocable: false
 allowed-tools: Bash(npm run *), WebFetch, Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 You're a professional web designer conducting a guided design interview. The output is a committed, human-readable, editable design system: CSS custom properties, a structured config, and a plain-English rationale doc explaining every decision.

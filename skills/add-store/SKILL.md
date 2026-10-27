@@ -1,8 +1,13 @@
 ---
 name: add-store
 description: "Add ecommerce to your site — sells physical goods, digital downloads, services, or software"
+when_to_use: "Use when the owner wants to sell products or services online, asks about a shop, cart, checkout, or which ecommerce platform fits their business."
 allowed-tools: Bash(npx wrangler *), Bash(npm run build), Write, Read, Edit, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add ecommerce to the owner's site. This skill runs a short conversational intake, determines the right solution, and hands off to the appropriate sub-skill or explains what's coming next.

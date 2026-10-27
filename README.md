@@ -15,7 +15,7 @@ Plugins in Cowork require a paid plan (Pro, Max, Team, or Enterprise).
 3. Press **+** > **Plugins** > **Add Plugin**
 4. Select the **Personal** tab, press **+**
 5. Select **Add Marketplace from GitHub**
-6. Enter `Anglesite/anglesite` and press **Sync**
+6. Enter `Anglesite/anglesite-skills` and press **Sync**
 7. Enable the **anglesite** plugin
 8. Create a new folder for your site and open it in the **Code** tab
 9. Type `/anglesite:start`
@@ -26,7 +26,7 @@ No terminal, no installs, no prerequisites. Claude handles everything.
 
 ```sh
 # Add the marketplace (one-time)
-claude plugin marketplace add Anglesite/anglesite
+claude plugin marketplace add Anglesite/anglesite-skills
 
 # Install the plugin
 claude plugin install anglesite
@@ -43,16 +43,19 @@ Then type `/anglesite:start` to begin.
 Individual skills can be installed in any agent that supports the [Open Agent Skills](https://agentskills.io) spec ([skills.sh](https://www.skills.sh)):
 
 ```sh
+# Browse and install from the full collection
+npx skills add Anglesite/anglesite-skills/agent-skills
+
 # Install a single skill
-npx skills add Anglesite/anglesite/agent-skills/start
+npx skills add Anglesite/anglesite-skills/agent-skills/start
 
 # Examples
-npx skills add Anglesite/anglesite/agent-skills/deploy
-npx skills add Anglesite/anglesite/agent-skills/seo
-npx skills add Anglesite/anglesite/agent-skills/contact
+npx skills add Anglesite/anglesite-skills/agent-skills/deploy
+npx skills add Anglesite/anglesite-skills/agent-skills/seo
+npx skills add Anglesite/anglesite-skills/agent-skills/contact
 ```
 
-Each skill is self-contained with bundled reference material. See [`agent-skills/README.md`](agent-skills/README.md) for the full list of available skills.
+Always include the `agent-skills/` path. `skills/` holds the Claude Code plugin sources, which only run inside the plugin. Each skill is self-contained with bundled reference material. See [`agent-skills/README.md`](agent-skills/README.md) for the full list of available skills.
 
 ---
 

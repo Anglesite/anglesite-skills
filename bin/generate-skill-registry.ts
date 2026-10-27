@@ -52,10 +52,12 @@ export function parseSkillFrontmatter(content: string): SkillMeta {
 const VALID_FRONTMATTER_KEYS = new Set([
   "name",
   "description",
+  "when_to_use",
   "user-invocable",
   "disable-model-invocation",
   "allowed-tools",
   "argument-hint",
+  "metadata",
 ]);
 
 export function validateSkillFrontmatter(content: string): string[] {

@@ -1,8 +1,13 @@
 ---
 name: repurpose
 description: "Generate per-platform social media post variants from a blog post"
+when_to_use: "Use when the owner wants to share a blog post on social media and needs ready-to-post versions for each platform."
 user-invocable: false
 allowed-tools: Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Generate ready-to-copy social media posts from a blog post. Called after blog post creation or deployment — not invoked directly by the owner.

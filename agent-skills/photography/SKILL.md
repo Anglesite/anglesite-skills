@@ -1,13 +1,13 @@
 ---
 name: photography
-description: "Generate a prioritized, site-type-specific shot list with phone photography tips"
+description: "Generate a prioritized, site-type-specific shot list with phone photography tips. Use when the owner needs photos for the site and wants to know what to shoot and how to get good results with a phone."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Read, Glob, Write
+allowed-tools: "Read Glob Write"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

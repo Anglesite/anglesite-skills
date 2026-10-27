@@ -1,13 +1,13 @@
 ---
 name: update
-description: "Update site dependencies and template files to the latest version"
+description: "Update site dependencies and template files to the latest version. Use when the owner asks to update the site, get the latest Anglesite features, or fix outdated dependencies or security warnings."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(zsh *), Bash(npm run *), Bash(npm install *), Bash(npm update *), Bash(npm outdated *), Bash(npm audit *), Bash(npx astro check), Bash(git add *), Bash(git commit *), Bash(git diff *), Write, Read, Glob
+allowed-tools: "Bash(zsh *) Bash(npm run *) Bash(npm install *) Bash(npm update *) Bash(npm outdated *) Bash(npm audit *) Bash(npx astro check) Bash(git add *) Bash(git commit *) Bash(git diff *) Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

@@ -1,9 +1,14 @@
 ---
 name: seo
 description: "SEO audit, metadata editing, Schema.org, sitemap, and LLM/GEO optimization"
+when_to_use: "Use when the owner wants to show up better in Google or AI search, asks about SEO, page titles, descriptions, structured data, or sitemaps."
 argument-hint: "[page /about | schema | sitemap | og-images]"
 allowed-tools: Bash(npm run build), Bash(npm run ai-seo*), Bash(npx astro check), Bash(grep *), Bash(find dist/ *), Bash(git log *), Write, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Audit and fix the site's SEO — page titles, meta descriptions, Open Graph tags, Schema.org structured data, sitemap, robots.txt, and AI search visibility. This is also called automatically as a non-blocking step before every deploy.

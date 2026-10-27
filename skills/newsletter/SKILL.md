@@ -1,8 +1,13 @@
 ---
 name: newsletter
 description: "Set up email newsletter with Buttondown, subscribe form, and auto-syndication"
+when_to_use: "Use when the owner wants to collect email subscribers, send a newsletter, or email new blog posts to followers."
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(curl *), Bash(grep *), Write, Read, Edit, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Connect the site to a newsletter service (Buttondown recommended, Mailchimp supported). Sets up a subscribe form, optional auto-syndication of blog posts, and subscriber count reporting.

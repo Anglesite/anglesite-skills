@@ -1,8 +1,13 @@
 ---
 name: print
 description: "Generate print-ready materials (business cards, flyers, door hangers, social cards) from site branding"
+when_to_use: "Use when the owner needs business cards, flyers, door hangers, posters, or other printed materials that match the site's branding."
 user-invocable: false
 allowed-tools: Write, Read, Glob, Bash(npm run ai-qr)
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Generate print-ready marketing materials that match the site's visual identity. Produces PDF files for print (business cards, flyers, door hangers) and PNG files for digital (social media cards). Called when the owner asks about print materials, marketing collateral, or physical handouts — not invoked directly.

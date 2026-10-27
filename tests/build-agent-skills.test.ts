@@ -14,6 +14,10 @@ import {
   inferCompatibility,
   renderIndex,
   relativeImports,
+  parseToolList,
+  formatToolList,
+  specDescription,
+  shellRootRefs,
 } from "../bin/build-agent-skills.ts";
 
 const ROOT = resolve(__dirname, "..");
@@ -33,7 +37,7 @@ Body text.
 `;
 
 describe("parseSkill", () => {
-  it("extracts frontmatter fields and preserves allowed-tools verbatim", () => {
+  it("extracts frontmatter fields and reads allowed-tools raw", () => {
     const s = parseSkill(sample, VERSION);
     expect(s.name).toBe("demo");
     expect(s.description).toBe("Does a thing");
@@ -41,6 +45,39 @@ describe("parseSkill", () => {
     expect(s.argumentHint).toBe("[page /about]");
     expect(s.disableModelInvocation).toBe(true);
     expect(s.body.trim()).toBe("Body text.");
+  });
+});
+
+describe("allowed-tools normalization", () => {
+  it("splits comma lists without breaking entries that contain spaces", () => {
+    expect(parseToolList("Bash(npm run build), Bash(git add *), Read")).toEqual([
+      "Bash(npm run build)",
+      "Bash(git add *)",
+      "Read",
+    ]);
+  });
+
+  it("accepts JSON/YAML flow arrays and space-separated lists", () => {
+    expect(parseToolList('["Bash(npm install)", "Write"]')).toEqual(["Bash(npm install)", "Write"]);
+    expect(parseToolList("Bash(git:*) Read")).toEqual(["Bash(git:*)", "Read"]);
+  });
+
+  it("emits the spec's space-separated string", () => {
+    const fm = buildFrontmatter(parseSkill(sample, VERSION), VERSION);
+    expect(fm).toMatch(/^allowed-tools: "Bash\(npm run build\) Read"$/m);
+    expect(formatToolList(["Write", "Read"])).toBe("Write Read");
+  });
+});
+
+describe("specDescription", () => {
+  it("folds when_to_use into the spec description", () => {
+    const s = parseSkill('---\nname: d\ndescription: "Deploy the site"\nwhen_to_use: "Use when publishing."\n---\n', VERSION);
+    expect(specDescription(s)).toBe("Deploy the site. Use when publishing.");
+    expect(buildFrontmatter(s, VERSION)).toMatch(/^description: "Deploy the site\. Use when publishing\."$/m);
+  });
+
+  it("flags a skill with no when_to_use", () => {
+    expect(validateSkill(parseSkill(sample, VERSION)).some((e) => /when_to_use/.test(e))).toBe(true);
   });
 });
 
@@ -97,7 +134,7 @@ describe("validation", () => {
   });
 
   it("flags out-of-range descriptions", () => {
-    const long = parseSkill(`---\nname: x\ndescription: "${"a".repeat(1100)}"\n---\n`, VERSION);
+    const long = parseSkill(`---\nname: x\ndescription: "${"a".repeat(1000)}"\nwhen_to_use: "${"b".repeat(100)}"\n---\n`, VERSION);
     expect(validateSkill(long).some((e) => /description/.test(e))).toBe(true);
   });
 });
@@ -126,7 +163,7 @@ describe("inferCompatibility", () => {
 describe("renderIndex", () => {
   it("lists install commands per skill", () => {
     const md = renderIndex([{ name: "seo", description: "SEO", invocation: "user-facing" }], VERSION);
-    expect(md).toContain("npx skills add Anglesite/anglesite/agent-skills/seo");
+    expect(md).toContain("npx skills add Anglesite/anglesite-skills/agent-skills/seo");
   });
 });
 
@@ -239,6 +276,31 @@ describe("emitSkill", () => {
     ).toBe(true);
   });
 
+  it("resolves extensionless imports to the source file", () => {
+    writePlugin("scripts/entry.ts", "import tool from './lib/tool';\n");
+    writePlugin("scripts/lib/tool.ts", "export default 1;\n");
+    const warnings = emitSkill(result("demo", ["scripts/entry.ts"]), pluginRoot, outRoot);
+    expect(existsSync(join(outRoot, "demo", "references/scripts/lib/tool.ts"))).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
+  it("bundles what a shell script reads through $PLUGIN_ROOT, even denylisted dirs", () => {
+    writePlugin("scripts/scaffold.sh", 'TEMPLATE="${PLUGIN_ROOT}/template"\ncat "$PLUGIN_ROOT/package.json"\n');
+    writePlugin("template/index.astro", "<h1>hi</h1>\n");
+    writePlugin("package.json", "{}\n");
+    const warnings = emitSkill(result("demo", ["scripts/scaffold.sh"]), pluginRoot, outRoot);
+    expect(existsSync(join(outRoot, "demo", "references/template/index.astro"))).toBe(true);
+    expect(existsSync(join(outRoot, "demo", "references/package.json"))).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
+  it("treats a placeholder ref as resolved when a script already bundled its parent", () => {
+    writePlugin("scripts/update.sh", 'TEMPLATE="${PLUGIN_ROOT}/template"\n');
+    writePlugin("template/index.astro", "<h1>hi</h1>\n");
+    const warnings = emitSkill(result("demo", ["scripts/update.sh", "template/<path>"]), pluginRoot, outRoot);
+    expect(warnings).toEqual([]);
+  });
+
   it("follows relative imports of scripts inside a bundled directory", () => {
     writePlugin("scripts/dir/tool.mjs", "import { u } from '../shared/util.mjs';\n");
     writePlugin("scripts/shared/util.mjs", "export const u = 1;\n");
@@ -252,6 +314,15 @@ describe("emitSkill", () => {
 // Bundled scripts must be runnable: every relative import inside a bundled
 // .mjs/.js/.ts file must resolve within the same references/ tree.
 // ---------------------------------------------------------------------------
+
+describe("shellRootRefs", () => {
+  it("finds braced and bare $PLUGIN_ROOT paths", () => {
+    expect(shellRootRefs('a="${PLUGIN_ROOT}/template"\nb=$PLUGIN_ROOT/package.json')).toEqual([
+      "package.json",
+      "template",
+    ]);
+  });
+});
 
 describe("bundled scripts resolve their relative imports", () => {
   const SCRIPT_EXT_RE = /\.(mjs|cjs|js|ts|mts)$/;
@@ -278,10 +349,15 @@ describe("bundled scripts resolve their relative imports", () => {
       const src = readFileSync(file, "utf-8");
       for (const spec of relativeImports(src)) {
         const target = resolve(join(file, ".."), spec);
-        // TS ESM convention: './x.js' in a .ts file resolves to './x.ts'.
-        const tsTarget = target.replace(/\.js$/, ".ts");
+        // TS ESM convention ('./x.js' → './x.ts') and extensionless specifiers.
+        const candidates = [
+          target,
+          target.replace(/\.js$/, ".ts"),
+          ...[".ts", ".mts", ".mjs", ".js"].map((ext) => target + ext),
+          ...["index.ts", "index.mjs", "index.js"].map((f) => join(target, f)),
+        ];
         expect(
-          existsSync(target) || existsSync(tsTarget),
+          candidates.some((c) => existsSync(c)),
           `${file} imports ${spec} which is not bundled`,
         ).toBe(true);
       }
@@ -310,6 +386,21 @@ describe("committed output is in sync", () => {
     const expected = buildSkill(src, VERSION).skillMd;
     const committed = readFileSync(join(OUT_DIR, name, "SKILL.md"), "utf-8").replace(/\n$/, "");
     expect(committed).toBe(expected.replace(/\n$/, ""));
+  });
+
+  it.each(skillNames)("agent-skills/%s/SKILL.md meets the agentskills.io spec", (name) => {
+    const md = readFileSync(join(OUT_DIR, name, "SKILL.md"), "utf-8");
+    const fm = md.match(/^---\n([\s\S]*?)\n---/)![1];
+    const description = JSON.parse(fm.match(/^description: (.+)$/m)![1]) as string;
+    expect(description.length).toBeLessThanOrEqual(1024);
+    expect(description, "description must say when to use the skill").toMatch(/\bUse when\b/);
+    const tools = fm.match(/^allowed-tools: (.+)$/m)?.[1];
+    if (tools) {
+      // A space-separated string — no list syntax, no commas between entries.
+      const value = JSON.parse(tools) as string;
+      expect(value.replace(/\([^)]*\)/g, "")).not.toMatch(/[,[\]]/);
+    }
+    expect(md.split("\n").length, "SKILL.md should stay within 500 lines").toBeLessThanOrEqual(500);
   });
 
   it("every generated SKILL.md is free of unresolved plugin variables", () => {

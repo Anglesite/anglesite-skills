@@ -1,13 +1,13 @@
 ---
 name: new-page
-description: "Create a new page with SEO and accessibility"
+description: "Create a new page with SEO and accessibility. Use when the owner asks to add a new page, such as About, Services, FAQ, or a landing page."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Glob
+allowed-tools: "Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
   argument-hint: "[page name or purpose]"
 ---

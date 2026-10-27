@@ -1,8 +1,13 @@
 ---
 name: business-info
 description: "Collect and display business hours, address, phone, and LocalBusiness JSON-LD"
+when_to_use: "Use when the site needs business hours, an address, phone number, map, or LocalBusiness structured data, or that information has changed."
 user-invocable: false
 allowed-tools: Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Collect business hours, address, and phone number, then generate LocalBusiness structured data and a location page. Called by the start and design-interview skills when business info is provided — not invoked directly.

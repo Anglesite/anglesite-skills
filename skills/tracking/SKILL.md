@@ -1,8 +1,13 @@
 ---
 name: tracking
 description: "Embed Meta Pixel, Google Ads / GA4, LinkedIn, TikTok, Pinterest, or X conversion pixels via @astrojs/partytown (off the main thread), plus Microsoft Clarity analytics (heatmaps + session recording) on the main thread. All gated behind cookie consent."
+when_to_use: "Use when the owner runs ads and needs a Meta, Google, LinkedIn, TikTok, Pinterest, or X conversion pixel, or wants Microsoft Clarity heatmaps."
 allowed-tools: Bash(npm install *), Bash(npm run build), Bash(npx astro check), Bash(grep *), Write, Read, Edit, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Wrap advertising and analytics pixels (Meta Pixel, Google Ads conversion tag, GA4, LinkedIn Insight, TikTok Pixel, Pinterest Tag, X / Twitter Pixel) in [Partytown](https://partytown.builder.io/) so they run in a web worker instead of blocking the main thread. This is the sanctioned way to attach an SMB's existing ad accounts to the site without breaking Anglesite's "no third-party JS on the main thread" guarantee or its mandatory pre-deploy script scan.

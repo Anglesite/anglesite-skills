@@ -1,0 +1,23 @@
+{
+  "keystatic": {
+    "collections": [
+      "posts",
+      "notes",
+      "services",
+      "team",
+      "testimonials",
+      "gallery",
+      "events",
+      "products",
+      "menus",
+      "menuSections",
+      "menuItems",
+      "episodes",
+      "experiments",
+      "faq",
+      "submissions",
+      "forms"
+    ],
+    "singletons": []
+  }
+}

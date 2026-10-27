@@ -17,7 +17,7 @@ Two levels of agent instructions exist — do not confuse them:
 
 ## How it works
 
-1. User installs the plugin from the `Anglesite/anglesite` marketplace (or `claude --plugin-dir .` for development). The marketplace catalog (`.claude-plugin/marketplace.json`) lives in this same repo alongside the plugin manifest.
+1. User installs the plugin from the `Anglesite/anglesite-skills` marketplace (or `claude --plugin-dir .` for development). The marketplace catalog (`.claude-plugin/marketplace.json`) lives in this same repo alongside the plugin manifest.
 2. `/anglesite:start` runs `scripts/scaffold.sh` to copy `template/` to the user's project
 3. Start skill proceeds with discovery interview, design, and tool installation
 4. All other skills (`/anglesite:deploy`, `/anglesite:check`, etc.) execute in the user's working directory
@@ -101,10 +101,10 @@ The MCP server version reported on `initialize` is **not** a fourth file to bump
 
 Anglesite ships two ways from one source — they coexist:
 
-1. **Claude Code plugin** — the `skills/` tree, installed from the `Anglesite/anglesite` marketplace.
-2. **Open Agent Skills** — a spec-compliant ([agentskills.io](https://agentskills.io) / [skills.sh](https://www.skills.sh)) export under `agent-skills/`, installable with `npx skills add Anglesite/anglesite/agent-skills/<skill>`.
+1. **Claude Code plugin** — the `skills/` tree, installed from the `Anglesite/anglesite-skills` marketplace.
+2. **Open Agent Skills** — a spec-compliant ([agentskills.io](https://agentskills.io) / [skills.sh](https://www.skills.sh)) export under `agent-skills/`, installable with `npx skills add Anglesite/anglesite-skills/agent-skills/<skill>`.
 
-`skills/` is the source of truth. `agent-skills/` is **generated** by `npm run build:agent-skills` (`bin/build-agent-skills.ts`) and committed so the skills.sh CLI can resolve skills by path. The transformer rewrites `${CLAUDE_PLUGIN_ROOT}` references into bundled `references/`, drops plugin-only frontmatter (`disable-model-invocation`, `user-invocable`, `argument-hint`) into spec `metadata`, and converts cross-skill links into plain mentions. **Never edit `agent-skills/` by hand** — edit `skills/` and rebuild. CI (`.github/workflows/test.yml`) fails if the export is stale. See `docs/dev/agent-skills.md` for the full contract and known limitations.
+`skills/` is the source of truth. `agent-skills/` is **generated** by `npm run build:agent-skills` (`bin/build-agent-skills.ts`) and committed so the skills.sh CLI can resolve skills by path. The transformer rewrites `${CLAUDE_PLUGIN_ROOT}` references into bundled `references/`, drops plugin-only frontmatter (`disable-model-invocation`, `user-invocable`, `argument-hint`) into spec `metadata`, folds `when_to_use` into the spec `description`, and converts cross-skill links into plain mentions. Every source skill needs a `when_to_use` line and the `metadata.internal: true` block (it keeps skills.sh from offering the raw sources). **Never edit `agent-skills/` by hand** — edit `skills/` and rebuild. CI (`.github/workflows/test.yml`) fails if the export is stale. See `docs/dev/agent-skills.md` for the full contract and known limitations.
 
 ## CI/CD
 

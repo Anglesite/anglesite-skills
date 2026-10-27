@@ -1,13 +1,13 @@
 ---
 name: qr
-description: "Generate QR codes with UTM tracking, shortlink redirects, and campaign-tagged URLs"
+description: "Generate QR codes with UTM tracking, shortlink redirects, and campaign-tagged URLs. Use when the owner needs a QR code for print, signage, packaging, or an event, especially one that tracks where scans come from."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run ai-qr), Write, Read, Glob
+allowed-tools: "Bash(npm run ai-qr) Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

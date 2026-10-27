@@ -1,8 +1,13 @@
 ---
 name: inbox
 description: "Browse, triage, and export form submissions from Keystatic instead of digging through email"
+when_to_use: "Use when the owner asks to see, sort, answer, or export messages and submissions that came in through site forms."
 allowed-tools: Bash(npm run *), Bash(npx wrangler *), Bash(grep *), Write, Read, Edit, Glob, mcp__cloudflare__accounts_list, mcp__cloudflare__set_active_account, mcp__cloudflare__d1_database_create, mcp__cloudflare__d1_databases_list, mcp__cloudflare__d1_database_get, mcp__cloudflare__d1_database_query
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Persist submissions from `/anglesite:contact` and `/anglesite:forms` to Cloudflare D1, surface them in Keystatic as a `Form Submissions` collection, and triage from there. Closes the gap of digging through email for a single submission and gives spam triage a real home. Custom forms and the contact form share one inbox, distinguished by `formSlug`.

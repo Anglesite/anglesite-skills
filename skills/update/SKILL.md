@@ -1,8 +1,13 @@
 ---
 name: update
 description: "Update site dependencies and template files to the latest version"
+when_to_use: "Use when the owner asks to update the site, get the latest Anglesite features, or fix outdated dependencies or security warnings."
 allowed-tools: Bash(zsh *), Bash(npm run *), Bash(npm install *), Bash(npm update *), Bash(npm outdated *), Bash(npm audit *), Bash(npx astro check), Bash(git add *), Bash(git commit *), Bash(git diff *), Write, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Update the owner's site to the latest Anglesite template and dependencies. This is the ongoing maintenance command — safe, incremental, and explained in plain English.

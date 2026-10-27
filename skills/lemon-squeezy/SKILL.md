@@ -1,8 +1,13 @@
 ---
 name: lemon-squeezy
 description: "Add a Lemon Squeezy checkout overlay for digital product sales (alternative to Polar)"
+when_to_use: "Use when the owner wants to sell digital products with Lemon Squeezy, or needs merchant-of-record tax handling for downloads."
 user-invocable: false
 allowed-tools: Bash(npm run build), Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add a Lemon Squeezy checkout overlay to sell digital products. Lemon Squeezy is a Merchant of Record — it handles payment processing, file delivery, license keys, and global sales tax automatically.

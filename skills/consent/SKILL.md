@@ -1,8 +1,13 @@
 ---
 name: consent
 description: "Add a category-based GDPR/CCPA cookie consent banner that gates third-party loads"
+when_to_use: "Use when the site loads analytics, ads pixels, or other third-party embeds and needs a cookie consent banner for GDPR, CCPA, or similar privacy rules."
 allowed-tools: Bash(npm run build), Bash(grep *), Write, Read, Glob, Edit
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add a category-based privacy / cookie consent banner. Required before the site can load analytics, embeds, or ad-tech in regulated regions (EU/UK, California, increasingly more US states). Categories are: **necessary** (always on), **analytics**, **embeds**, **ads**. Third-party scripts and iframes are gated via a `data-consent` attribute pattern — they don't run until the visitor consents to their category.

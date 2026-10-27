@@ -1,9 +1,14 @@
 ---
 name: redirects
 description: "Manage the _redirects file: add, remove, list, validate, and bulk-import redirects (301 / 302 / 308)"
+when_to_use: "Use when pages have moved or been renamed, old links are broken, or the owner needs to manage URL redirects after a migration."
 argument-hint: "[add | remove | list | validate | import | review]"
 allowed-tools: Read, Write, Edit, Glob, Bash(grep *), Bash(find *), Bash(wc *), Bash(sort *), Bash(awk *), Bash(test *), Bash(ls *), Bash(cat *)
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Manage redirects in `public/_redirects` so old URLs keep working when pages are renamed, content is imported from another platform, or the site's URL structure changes. The owner shouldn't have to hand-edit the file or learn the `_redirects` syntax.

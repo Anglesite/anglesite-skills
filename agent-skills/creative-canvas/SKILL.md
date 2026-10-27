@@ -1,13 +1,13 @@
 ---
 name: creative-canvas
-description: "Add interactive visual effects and creative coding to any page"
+description: "Add interactive visual effects and creative coding to any page. Use when the owner wants something visually striking — generative art, particle effects, interactive backgrounds, or other creative coding on a page."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm install *), Bash(npm run dev), Bash(npm run build), Write, Read, Glob
+allowed-tools: "Bash(npm install *) Bash(npm run dev) Bash(npm run build) Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
   argument-hint: "[effect description or library name]"
 ---

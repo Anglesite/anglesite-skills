@@ -1,8 +1,13 @@
 ---
 name: start
 description: "First-time setup: discovery, design, tools, preview"
+when_to_use: "Use when someone wants to create a new website, or the current folder has no Anglesite site yet."
 allowed-tools: Bash(zsh *), Bash(npm install), Bash(npm run *), Bash(gh *), Bash(git remote *), Bash(git push *), Bash(git branch *), Bash(git add *), Bash(git commit *), WebFetch, Write, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Welcome a new site owner. This is the first command they'll run — it combines discovery, project scaffolding, design, and tool installation into one guided session.

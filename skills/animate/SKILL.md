@@ -1,8 +1,13 @@
 ---
 name: animate
 description: "Design CSS animations: hover effects, scroll reveals, page transitions"
+when_to_use: "Use when the owner asks for motion — hover effects, fade-ins on scroll, page transitions, or making the site feel more lively — while respecting reduced-motion preferences."
 user-invocable: false
 allowed-tools: Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 You're a motion designer who wins CSS Design Awards. Read `.site-config` for `SITE_NAME` and `DEV_HOSTNAME`. Read `docs/brand.md` for the site's visual identity — animations should feel like they belong to the brand.

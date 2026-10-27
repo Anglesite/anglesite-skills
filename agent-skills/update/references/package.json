@@ -24,7 +24,7 @@
   "homepage": "https://anglesite.dwk.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Anglesite/anglesite"
+    "url": "https://github.com/Anglesite/anglesite-skills"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",

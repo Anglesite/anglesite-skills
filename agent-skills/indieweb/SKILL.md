@@ -1,13 +1,13 @@
 ---
 name: indieweb
-description: "Deploy self-owned IndieAuth, Webmention, and Micropub endpoints on your domain"
+description: "Deploy self-owned IndieAuth, Webmention, and Micropub endpoints on your domain. Use when the owner wants to own their identity and interactions on the open web — sign in with their domain, send or receive Webmentions, or post via Micropub."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run build), Bash(npm install *), Bash(npx wrangler *), Bash(openssl *), Bash(grep *), Bash(gh *), Bash(node *), Bash(mktemp *), Bash(printf *), Bash(rm *), Write, Read, Edit, Glob, mcp__cloudflare__accounts_list, mcp__cloudflare__set_active_account, mcp__cloudflare__d1_database_create, mcp__cloudflare__d1_databases_list, mcp__cloudflare__d1_database_get, mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_buckets_list
+allowed-tools: "Bash(npm run build) Bash(npm install *) Bash(npx wrangler *) Bash(openssl *) Bash(grep *) Bash(gh *) Bash(node *) Bash(mktemp *) Bash(printf *) Bash(rm *) Write Read Edit Glob mcp__cloudflare__accounts_list mcp__cloudflare__set_active_account mcp__cloudflare__d1_database_create mcp__cloudflare__d1_databases_list mcp__cloudflare__d1_database_get mcp__cloudflare__r2_bucket_create mcp__cloudflare__r2_buckets_list"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

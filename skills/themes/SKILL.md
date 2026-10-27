@@ -1,8 +1,13 @@
 ---
 name: themes
 description: "Present pre-built visual themes from freedesignmd plus built-in quick-picks, then apply the owner's choice"
+when_to_use: "Use when the owner wants to quickly pick a ready-made look for the site rather than design one from scratch."
 user-invocable: false
 allowed-tools: WebFetch, Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Present pre-built visual themes and apply the owner's choice. Called by the design-interview, start, and design-import skills — not invoked directly.

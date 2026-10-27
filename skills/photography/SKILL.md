@@ -1,8 +1,13 @@
 ---
 name: photography
 description: "Generate a prioritized, site-type-specific shot list with phone photography tips"
+when_to_use: "Use when the owner needs photos for the site and wants to know what to shoot and how to get good results with a phone."
 allowed-tools: Read, Glob, Write
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Generate a custom photography shot list based on the site type, plus practical phone photography tips. Helps owners know exactly what photos to take before filling in site content.

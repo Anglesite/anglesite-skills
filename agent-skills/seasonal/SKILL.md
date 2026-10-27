@@ -1,13 +1,13 @@
 ---
 name: seasonal
-description: "Surface seasonal content suggestions based on business type and current date"
+description: "Surface seasonal content suggestions based on business type and current date. Use when the owner asks what to post or update for an upcoming holiday, season, or event, or wants timely content ideas."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(date *), Read, Glob
+allowed-tools: "Bash(date *) Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

@@ -1,8 +1,13 @@
 ---
 name: paddle
 description: "Set up Paddle checkout for software licensing, SaaS subscriptions, or metered billing"
+when_to_use: "Use when the owner sells software, licenses, SaaS subscriptions, or usage-based plans and wants Paddle to handle billing and tax."
 allowed-tools: Write, Read, Edit, Glob, Bash(npm run build), Bash(npx astro check)
 user-invocable: false
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Set up Paddle checkout for selling software, plugins, SaaS subscriptions, or metered-billing products. Paddle acts as Merchant of Record — it handles global tax compliance, subscription management, license keys, and payouts. Claude embeds a checkout overlay on the site using Paddle.js.

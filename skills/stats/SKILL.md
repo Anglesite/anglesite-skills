@@ -1,8 +1,13 @@
 ---
 name: stats
 description: "Show site analytics in plain language"
+when_to_use: "Use when the owner asks how many visitors they get, which pages are popular, where traffic comes from, or how the site is doing."
 allowed-tools: Bash(curl *), Bash(grep *), Bash(git log *), Bash(cat perf-trend.json), Write, Edit, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Fetch Cloudflare analytics data and present it as a plain-language summary. No dashboard navigation required — the owner sees their numbers right here.
@@ -248,7 +253,7 @@ curl -s "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/analytics_
 Inspect the response before parsing. The SQL API can fail three different ways and each needs a different message — do not collapse them into a single "permissions error":
 
 - **Auth/permission failure** — the body is the standard Cloudflare error envelope (`{"success": false, "errors": [...]}`) or a plain `Unauthorized` response, and the error text mentions authentication, authorization, "does not have access", or HTTP 401/403. The token is missing **Account → Analytics Engine → Read**. Skip the conversions section and surface the one-line remediation note from the token-creation step: "Add Account → Analytics Engine → Read to your token to see conversion numbers."
-- **Schema/query failure** — the body is a SQL-parser error, references an unknown table or column, or otherwise indicates the query itself is wrong (e.g., `error parsing args`, `unknown arg`, `unknown column`, `Syntax error`, `Table … does not exist`). This means the skill's SQL is out of date, not that the owner's token is broken. Surface a different one-liner: "Cloudflare's Analytics Engine returned an error this skill doesn't recognize. Open an issue at `https://github.com/Anglesite/anglesite/issues` with the error text and we'll fix the query." Do not blame the token in this case.
+- **Schema/query failure** — the body is a SQL-parser error, references an unknown table or column, or otherwise indicates the query itself is wrong (e.g., `error parsing args`, `unknown arg`, `unknown column`, `Syntax error`, `Table … does not exist`). This means the skill's SQL is out of date, not that the owner's token is broken. Surface a different one-liner: "Cloudflare's Analytics Engine returned an error this skill doesn't recognize. Open an issue at `https://github.com/Anglesite/anglesite-skills/issues` with the error text and we'll fix the query." Do not blame the token in this case.
 - **Empty result** — `.data[]` is an empty array. The helper Workers either haven't been deployed yet or haven't received any traffic. Skip the section silently — don't surface an empty table.
 
 ## Step 3 — Parse and summarize

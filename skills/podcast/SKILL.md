@@ -1,8 +1,13 @@
 ---
 name: podcast
 description: "Set up a podcast on the site — episodes, RSS feed with iTunes namespace, transcripts, audio player, and platform submission"
+when_to_use: "Use when the owner wants to publish a podcast, host episodes on the site, or submit a show to Apple Podcasts, Spotify, or other directories."
 allowed-tools: Bash(npm run build), Bash(npm run dev), Bash(npx wrangler r2 *), Bash(wc -c *), Bash(stat *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, mcp__cloudflare__r2_bucket_delete, Read, Write, Edit, Glob, Grep
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Stand up first-class podcast support: a Keystatic `episodes` collection, an RSS 2.0 feed with the iTunes and Podcast Index namespaces, episode pages with an embedded vanilla audio player, transcripts with anchored timestamps, optional YouTube video embed per episode, and a submission checklist for the major directories.

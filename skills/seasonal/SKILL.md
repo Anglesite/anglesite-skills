@@ -1,8 +1,13 @@
 ---
 name: seasonal
 description: "Surface seasonal content suggestions based on business type and current date"
+when_to_use: "Use when the owner asks what to post or update for an upcoming holiday, season, or event, or wants timely content ideas."
 user-invocable: false
 allowed-tools: Bash(date *), Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Surface timely content suggestions from the seasonal marketing calendar. Called during session start, after blog post creation, or by the check skill — not invoked directly by the owner.

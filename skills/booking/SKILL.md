@@ -1,8 +1,13 @@
 ---
 name: booking
 description: "Embed appointment scheduling (Cal.com or Calendly) into the site"
+when_to_use: "Use when the owner wants customers to book appointments, classes, or consultations online, or mentions Cal.com or Calendly."
 allowed-tools: Write, Read, Glob, Bash(npm run build), Bash(npx astro check)
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Embed a booking widget into the site so visitors can schedule appointments directly. Supports Cal.com (default, open-source) and Calendly as providers. Generates a reusable `BookingWidget.astro` component, wires it into the appropriate page(s), applies the site's brand color, injects Schema.org structured data, and updates CSP headers.

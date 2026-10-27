@@ -1,13 +1,13 @@
 ---
 name: print
-description: "Generate print-ready materials (business cards, flyers, door hangers, social cards) from site branding"
+description: "Generate print-ready materials (business cards, flyers, door hangers, social cards) from site branding. Use when the owner needs business cards, flyers, door hangers, posters, or other printed materials that match the site's branding."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Glob, Bash(npm run ai-qr)
+allowed-tools: "Write Read Glob Bash(npm run ai-qr)"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

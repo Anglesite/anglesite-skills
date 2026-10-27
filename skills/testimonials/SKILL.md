@@ -1,8 +1,13 @@
 ---
 name: testimonials
 description: "Set up customer review collection, moderation, and display with star ratings"
+when_to_use: "Use when the owner wants to collect, approve, and show customer reviews or testimonials on the site."
 user-invocable: false
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Set up customer testimonial collection and display. Called when the owner asks about reviews, testimonials, or social proof — not invoked directly.

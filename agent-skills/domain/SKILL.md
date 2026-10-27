@@ -1,13 +1,13 @@
 ---
 name: domain
-description: "Manage DNS records: email, Bluesky, verification"
+description: "Manage DNS records: email, Bluesky, verification. Use when the owner needs to add or change DNS records — custom email, Bluesky handle verification, Google or other site verification, or other domain settings."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(curl *), Write, Read, mcp__cloudflare__search_cloudflare_documentation
+allowed-tools: "Bash(curl *) Write Read mcp__cloudflare__search_cloudflare_documentation"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
   argument-hint: "[email, bluesky, or service name]"
 ---

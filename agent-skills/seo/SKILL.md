@@ -1,13 +1,13 @@
 ---
 name: seo
-description: "SEO audit, metadata editing, Schema.org, sitemap, and LLM/GEO optimization"
+description: "SEO audit, metadata editing, Schema.org, sitemap, and LLM/GEO optimization. Use when the owner wants to show up better in Google or AI search, asks about SEO, page titles, descriptions, structured data, or sitemaps."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Bash(npm run ai-seo*), Bash(npx astro check), Bash(grep *), Bash(find dist/ *), Bash(git log *), Write, Read, Glob
+allowed-tools: "Bash(npm run build) Bash(npm run ai-seo*) Bash(npx astro check) Bash(grep *) Bash(find dist/ *) Bash(git log *) Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
   argument-hint: "[page /about | schema | sitemap | og-images]"
 ---

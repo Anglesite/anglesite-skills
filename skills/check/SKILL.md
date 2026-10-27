@@ -1,9 +1,14 @@
 ---
 name: check
 description: "Health audit and troubleshooting"
+when_to_use: "Use when the owner says something is broken, looks wrong, or won't build, or asks for a health check, audit, or troubleshooting before or after a deploy."
 argument-hint: "[optional: describe the problem]"
 allowed-tools: Bash(npm run *), Bash(npx astro check), Bash(npx pa11y *), Bash(npx pa11y-ci *), Bash(npx tsx scripts/link-check.ts *), Bash(npx tsx scripts/a11y-audit.ts *), Bash(npx tsx scripts/a14y-audit.ts *), Bash(npx a14y *), Bash(a14y *), Bash(grep *), Bash(find dist/ *), Bash(stat *), Bash(npm audit *), Bash(lsof *), Bash(netstat *), Bash(getent *), Bash(nslookup *), Bash(gh issue *), Bash(gh label *), Write, Read, Glob, mcp__cloudflare__accounts_list, mcp__cloudflare__search_cloudflare_documentation, mcp__cloudflare__workers_list, mcp__cloudflare__workers_get_worker, mcp__cloudflare__workers_get_worker_code
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Run a full health check on the site — and fix what you find. If the owner described a specific problem, diagnose that first; otherwise run the full audit below. The checklists are for you (the agent) — **do not show raw checklist items, technical terms, or jargon to the owner.** Translate every finding into plain English. See the Results section at the bottom for how to present findings.
@@ -372,7 +377,7 @@ Follow the bug filing workflow in `docs/bug-filing.md`. Use the appropriate labe
 - Content issues → `content`
 - Everything else → `bug`
 
-If the issue is in Anglesite itself (not the owner's site), use the plugin bug filing workflow in `docs/bug-filing.md` to open a pre-filled issue in the owner's browser against `Anglesite/anglesite`.
+If the issue is in Anglesite itself (not the owner's site), use the plugin bug filing workflow in `docs/bug-filing.md` to open a pre-filled issue in the owner's browser against `Anglesite/anglesite-skills`.
 
 ## Troubleshooting
 

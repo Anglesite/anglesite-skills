@@ -1,13 +1,13 @@
 ---
 name: podcast
-description: "Set up a podcast on the site — episodes, RSS feed with iTunes namespace, transcripts, audio player, and platform submission"
+description: "Set up a podcast on the site — episodes, RSS feed with iTunes namespace, transcripts, audio player, and platform submission. Use when the owner wants to publish a podcast, host episodes on the site, or submit a show to Apple Podcasts, Spotify, or other directories."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run build), Bash(npm run dev), Bash(npx wrangler r2 *), Bash(wc -c *), Bash(stat *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, mcp__cloudflare__r2_bucket_delete, Read, Write, Edit, Glob, Grep
+allowed-tools: "Bash(npm run build) Bash(npm run dev) Bash(npx wrangler r2 *) Bash(wc -c *) Bash(stat *) mcp__cloudflare__r2_bucket_create mcp__cloudflare__r2_bucket_get mcp__cloudflare__r2_buckets_list mcp__cloudflare__r2_bucket_delete Read Write Edit Glob Grep"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

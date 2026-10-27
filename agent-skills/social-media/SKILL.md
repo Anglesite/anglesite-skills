@@ -1,13 +1,13 @@
 ---
 name: social-media
-description: "Proactive social media strategy, content calendars, and profile optimization"
+description: "Proactive social media strategy, content calendars, and profile optimization. Use when the owner asks what to post on social media, wants a content calendar, or wants their profiles to point people to the site."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Glob
+allowed-tools: "Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

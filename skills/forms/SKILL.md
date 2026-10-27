@@ -1,8 +1,13 @@
 ---
 name: forms
 description: "Build custom forms (RSVP, lead capture, survey, callback) with Keystatic-defined fields, Turnstile, and per-form rate limiting"
+when_to_use: "Use when the owner needs a form beyond a basic contact form — RSVPs, lead capture, surveys, callback requests, or custom fields."
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(npx astro check), Bash(grep *), Write, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Build a custom form whose schema is owned by the site owner in Keystatic. Submissions hit a Cloudflare Worker that verifies Turnstile, applies a per-form rate limit, runs server-side validation matched to client-side rules, and forwards the message to the owner's email. Companion to `/anglesite:contact` — use this for any form beyond the single owner contact form (RSVPs, lead captures, quote requests, surveys, callback requests, waitlists).

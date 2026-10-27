@@ -1,8 +1,13 @@
 ---
 name: social-media
 description: "Proactive social media strategy, content calendars, and profile optimization"
+when_to_use: "Use when the owner asks what to post on social media, wants a content calendar, or wants their profiles to point people to the site."
 user-invocable: false
 allowed-tools: Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Provide proactive social media strategy, content planning, and profile optimization for small business owners. Called during `/anglesite:start` (initial setup), `/anglesite:check` (periodic review), by the `seasonal` skill, or when the owner asks about social media. Complements the `repurpose` skill, which generates reactive blog-to-social post copy — this skill covers the full social media presence.

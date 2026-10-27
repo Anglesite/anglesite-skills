@@ -1,9 +1,14 @@
 ---
 name: domain
 description: "Manage DNS records: email, Bluesky, verification"
+when_to_use: "Use when the owner needs to add or change DNS records — custom email, Bluesky handle verification, Google or other site verification, or other domain settings."
 argument-hint: "[email, bluesky, or service name]"
 allowed-tools: Bash(curl *), Write, Read, mcp__cloudflare__search_cloudflare_documentation
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Manage DNS records for the owner's domain on Cloudflare. All DNS changes are made directly via the Cloudflare API — never ask the owner to add, remove, or modify DNS records themselves. Never open the Cloudflare dashboard for DNS operations.

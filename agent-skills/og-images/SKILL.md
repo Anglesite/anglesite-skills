@@ -1,13 +1,13 @@
 ---
 name: og-images
-description: "Generate branded OG images for social sharing: per-page and site-wide, using Satori"
+description: "Generate branded OG images for social sharing: per-page and site-wide, using Satori. Use when the owner wants nicer link previews when pages are shared on social media or in messaging apps."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run ai-images), Bash(npm run ai-og), Bash(npx wrangler r2 *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, Read, Glob, Write
+allowed-tools: "Bash(npm run ai-images) Bash(npm run ai-og) Bash(npx wrangler r2 *) mcp__cloudflare__r2_bucket_create mcp__cloudflare__r2_bucket_get mcp__cloudflare__r2_buckets_list Read Glob Write"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

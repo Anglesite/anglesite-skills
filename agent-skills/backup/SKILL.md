@@ -1,13 +1,13 @@
 ---
 name: backup
-description: "Back up site changes to GitHub, or restore an earlier snapshot"
+description: "Back up site changes to GitHub, or restore an earlier snapshot. Use when the owner asks to save or back up their work, see what changed, undo recent changes, or restore an earlier version of the site."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(git status *), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(git log *), Bash(git diff *), Bash(git checkout *), Bash(git branch *), Bash(git tag *), Bash(git show *), Bash(git stash *), Bash(git fetch *), Bash(git rev-parse *), Bash(npx tsx *), Read
+allowed-tools: "Bash(git status *) Bash(git add *) Bash(git commit *) Bash(git push *) Bash(git log *) Bash(git diff *) Bash(git checkout *) Bash(git branch *) Bash(git tag *) Bash(git show *) Bash(git stash *) Bash(git fetch *) Bash(git rev-parse *) Bash(npx tsx *) Read"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

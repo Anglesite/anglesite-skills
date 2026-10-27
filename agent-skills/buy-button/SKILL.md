@@ -1,13 +1,13 @@
 ---
 name: buy-button
-description: "Add a buy button to sell a product, service, or digital good (Stripe or Polar)"
+description: "Add a buy button to sell a product, service, or digital good (Stripe or Polar). Use when the owner wants to sell a single product, service, or download with a simple pay button rather than a full store, or mentions Stripe Payment Links or Polar."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Write, Read, Edit, Glob
+allowed-tools: "Bash(npm run build) Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 
