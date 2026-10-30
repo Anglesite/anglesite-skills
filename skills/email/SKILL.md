@@ -1,8 +1,13 @@
 ---
 name: email
 description: "Set up business email: Apple-first provider recommendation, DNS pre-fill, tier routing"
+when_to_use: "Use when the owner wants a professional email address at their own domain or needs help choosing an email provider."
 user-invocable: false
 allowed-tools: Bash(curl *), Write, Read
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Set up business email for the owner's domain. This skill is invoked by the domain skill when the owner asks for email. It handles provider recommendation, DNS record setup, and setup walkthroughs.

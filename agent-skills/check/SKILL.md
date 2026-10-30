@@ -1,13 +1,13 @@
 ---
 name: check
-description: "Health audit and troubleshooting"
+description: "Health audit and troubleshooting. Use when the owner says something is broken, looks wrong, or won't build, or asks for a health check, audit, or troubleshooting before or after a deploy."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run *), Bash(npx astro check), Bash(npx pa11y *), Bash(npx pa11y-ci *), Bash(npx tsx scripts/link-check.ts *), Bash(npx tsx scripts/a11y-audit.ts *), Bash(npx tsx scripts/a14y-audit.ts *), Bash(npx a14y *), Bash(a14y *), Bash(grep *), Bash(find dist/ *), Bash(stat *), Bash(npm audit *), Bash(lsof *), Bash(netstat *), Bash(getent *), Bash(nslookup *), Bash(gh issue *), Bash(gh label *), Write, Read, Glob, mcp__cloudflare__accounts_list, mcp__cloudflare__search_cloudflare_documentation, mcp__cloudflare__workers_list, mcp__cloudflare__workers_get_worker, mcp__cloudflare__workers_get_worker_code
+allowed-tools: "Bash(npm run *) Bash(npx astro check) Bash(npx pa11y *) Bash(npx pa11y-ci *) Bash(npx tsx scripts/link-check.ts *) Bash(npx tsx scripts/a11y-audit.ts *) Bash(npx tsx scripts/a14y-audit.ts *) Bash(npx a14y *) Bash(a14y *) Bash(grep *) Bash(find dist/ *) Bash(stat *) Bash(npm audit *) Bash(lsof *) Bash(netstat *) Bash(getent *) Bash(nslookup *) Bash(gh issue *) Bash(gh label *) Write Read Glob mcp__cloudflare__accounts_list mcp__cloudflare__search_cloudflare_documentation mcp__cloudflare__workers_list mcp__cloudflare__workers_get_worker mcp__cloudflare__workers_get_worker_code"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
   argument-hint: "[optional: describe the problem]"
 ---
@@ -378,7 +378,7 @@ Follow the bug filing workflow in `docs/bug-filing.md`. Use the appropriate labe
 - Content issues → `content`
 - Everything else → `bug`
 
-If the issue is in Anglesite itself (not the owner's site), use the plugin bug filing workflow in `docs/bug-filing.md` to open a pre-filled issue in the owner's browser against `Anglesite/anglesite`.
+If the issue is in Anglesite itself (not the owner's site), use the plugin bug filing workflow in `docs/bug-filing.md` to open a pre-filled issue in the owner's browser against `Anglesite/anglesite-skills`.
 
 ## Troubleshooting
 

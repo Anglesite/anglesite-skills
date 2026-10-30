@@ -1,13 +1,13 @@
 ---
 name: add-store
-description: "Add ecommerce to your site — sells physical goods, digital downloads, services, or software"
+description: "Add ecommerce to your site — sells physical goods, digital downloads, services, or software. Use when the owner wants to sell products or services online, asks about a shop, cart, checkout, or which ecommerce platform fits their business."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npx wrangler *), Bash(npm run build), Write, Read, Edit, Glob
+allowed-tools: "Bash(npx wrangler *) Bash(npm run build) Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

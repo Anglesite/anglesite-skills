@@ -1,8 +1,13 @@
 ---
 name: buy-button
 description: "Add a buy button to sell a product, service, or digital good (Stripe or Polar)"
+when_to_use: "Use when the owner wants to sell a single product, service, or download with a simple pay button rather than a full store, or mentions Stripe Payment Links or Polar."
 user-invocable: false
 allowed-tools: Bash(npm run build), Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add a buy/payment button to a page. Two paths depending on what the owner is selling:

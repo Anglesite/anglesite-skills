@@ -1,13 +1,13 @@
 ---
 name: redirects
-description: "Manage the _redirects file: add, remove, list, validate, and bulk-import redirects (301 / 302 / 308)"
+description: "Manage the _redirects file: add, remove, list, validate, and bulk-import redirects (301 / 302 / 308). Use when pages have moved or been renamed, old links are broken, or the owner needs to manage URL redirects after a migration."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Read, Write, Edit, Glob, Bash(grep *), Bash(find *), Bash(wc *), Bash(sort *), Bash(awk *), Bash(test *), Bash(ls *), Bash(cat *)
+allowed-tools: "Read Write Edit Glob Bash(grep *) Bash(find *) Bash(wc *) Bash(sort *) Bash(awk *) Bash(test *) Bash(ls *) Bash(cat *)"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
   argument-hint: "[add | remove | list | validate | import | review]"
 ---

@@ -1,13 +1,13 @@
 ---
 name: freedesignmd
-description: "Browse, fetch, and apply a design system from freedesignmd.com to the project"
+description: "Browse, fetch, and apply a design system from freedesignmd.com to the project. Use when the owner wants to browse ready-made design systems or mentions freedesignmd.com."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: WebFetch, Write, Read, Edit, Glob
+allowed-tools: "WebFetch Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

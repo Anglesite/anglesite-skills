@@ -33,7 +33,7 @@ import { join, resolve, dirname, relative } from "node:path";
 const PLUGIN_VAR = "${CLAUDE_PLUGIN_ROOT}";
 
 const AUTHOR = "David W. Keith";
-const SOURCE = "https://github.com/Anglesite/anglesite";
+const SOURCE = "https://github.com/Anglesite/anglesite-skills";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +42,8 @@ const SOURCE = "https://github.com/Anglesite/anglesite";
 export interface ParsedSkill {
   name: string;
   description: string;
+  /** Claude Code's `when_to_use` — folded into the spec description. */
+  whenToUse?: string;
   allowedTools?: string;
   argumentHint?: string;
   disableModelInvocation: boolean;
@@ -82,8 +84,9 @@ export function parseSkill(content: string, version: string): ParsedSkill {
   return {
     name: unquote(raw("name")) ?? "",
     description: unquote(raw("description")) ?? "",
-    // allowed-tools is preserved verbatim — it contains commas and parens that
-    // would be mangled by naive YAML round-tripping.
+    whenToUse: unquote(raw("when_to_use")),
+    // allowed-tools is read raw — it contains commas and parens that would be
+    // mangled by naive YAML round-tripping — and normalized at emit time.
     allowedTools: raw("allowed-tools"),
     argumentHint: unquote(raw("argument-hint")),
     disableModelInvocation: /^disable-model-invocation:\s*true\s*$/m.test(fm),
@@ -92,10 +95,68 @@ export function parseSkill(content: string, version: string): ParsedSkill {
   };
 }
 
+/**
+ * The spec has one `description` that must say what a skill does AND when to
+ * use it (agents outside Claude Code see nothing else when deciding to load a
+ * skill). Claude Code splits that into `description` + `when_to_use`, so join
+ * them here.
+ */
+export function specDescription(skill: ParsedSkill): string {
+  if (!skill.whenToUse) return skill.description;
+  const what = /[.!?]$/.test(skill.description) ? skill.description : `${skill.description}.`;
+  return `${what} ${skill.whenToUse}`;
+}
+
 export function classify(skill: ParsedSkill): SkillClassification {
   if (skill.userInvocable === false) return "model-only";
   if (skill.disableModelInvocation) return "user-facing";
   return "both";
+}
+
+// ---------------------------------------------------------------------------
+// allowed-tools — normalize to the spec's space-separated string
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a plugin `allowed-tools` value into individual tool entries. Sources
+ * use either a comma list (`Bash(npm run build), Read`) or a YAML/JSON flow
+ * array (`["Bash(npm run build)", "Read"]`). Separators inside parentheses
+ * belong to the entry, never split it.
+ */
+export function parseToolList(raw: string): string[] {
+  const v = raw.trim();
+  if (v.startsWith("[")) {
+    try {
+      return (JSON.parse(v) as unknown[]).map(String).map((t) => t.trim()).filter(Boolean);
+    } catch {
+      // Fall through to the tokenizer for non-JSON flow sequences.
+    }
+  }
+  const inner = v.replace(/^\[|\]$/g, "");
+  const tools: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of inner) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === "," || /\s/.test(ch))) {
+      if (cur.trim()) tools.push(cur.trim());
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.trim()) tools.push(cur.trim());
+  return tools.map((t) => t.replace(/^["']|["']$/g, ""));
+}
+
+/**
+ * The spec defines `allowed-tools` as a space-separated string. Entries such
+ * as `Bash(npm run build)` keep their inner spaces; parsers split on
+ * whitespace outside parentheses, as Claude Code does.
+ */
+export function formatToolList(tools: string[]): string {
+  return tools.join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -198,11 +259,11 @@ export function buildFrontmatter(skill: ParsedSkill, version: string): string {
   const lines: string[] = ["---"];
   lines.push(`name: ${skill.name}`);
   // Quote description defensively (it may contain colons).
-  lines.push(`description: ${JSON.stringify(skill.description)}`);
+  lines.push(`description: ${JSON.stringify(specDescription(skill))}`);
   lines.push("license: ISC");
   lines.push(`compatibility: ${JSON.stringify(inferCompatibility(skill))}`);
   if (skill.allowedTools) {
-    lines.push(`allowed-tools: ${skill.allowedTools}`);
+    lines.push(`allowed-tools: ${JSON.stringify(formatToolList(parseToolList(skill.allowedTools)))}`);
   }
   lines.push("metadata:");
   lines.push(`  author: ${JSON.stringify(AUTHOR)}`);
@@ -236,8 +297,11 @@ export function validateSkillName(name: string): string[] {
 
 export function validateSkill(skill: ParsedSkill): string[] {
   const errors = validateSkillName(skill.name);
-  if (skill.description.length < 1 || skill.description.length > 1024)
-    errors.push(`description must be 1-1024 chars (got ${skill.description.length})`);
+  const description = specDescription(skill);
+  if (description.length < 1 || description.length > 1024)
+    errors.push(`description must be 1-1024 chars (got ${description.length})`);
+  if (!skill.whenToUse)
+    errors.push("missing when_to_use — the spec description must say when to use the skill");
   return errors;
 }
 
@@ -288,6 +352,37 @@ export function relativeImports(source: string): string[] {
     while ((m = re.exec(source)) !== null) specs.add(m[1]);
   }
   return [...specs].sort();
+}
+
+// Shell scripts locate plugin files through a PLUGIN_ROOT variable derived
+// from their own path ($PLUGIN_ROOT/template, ${PLUGIN_ROOT}/package.json).
+const SHELL_ROOT_REF_RE = /\$\{?PLUGIN_ROOT\}?\/([A-Za-z0-9_.\/-]+)/g;
+
+/** Plugin-root-relative paths a shell script reads via $PLUGIN_ROOT. */
+export function shellRootRefs(source: string): string[] {
+  const refs = new Set<string>();
+  SHELL_ROOT_REF_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = SHELL_ROOT_REF_RE.exec(source)) !== null) {
+    refs.add(m[1].replace(/\/+$/, ""));
+  }
+  return [...refs].sort();
+}
+
+/**
+ * Resolve an import target the way Node/Vite would for this repo's sources:
+ * exact path, the TS ESM convention ('./x.js' compiled from './x.ts'), then
+ * extensionless specifiers ('./x' → x.ts / x.mjs / x.js / x/index.*).
+ * Returns the input unchanged when nothing matches.
+ */
+function resolveImport(target: string): string {
+  if (existsSync(target) && statSync(target).isFile()) return target;
+  const candidates = [
+    ...(target.endsWith(".js") ? [target.replace(/\.js$/, ".ts")] : []),
+    ...[".ts", ".mts", ".mjs", ".js"].map((ext) => target + ext),
+    ...["index.ts", "index.mjs", "index.js"].map((f) => join(target, f)),
+  ];
+  return candidates.find((c) => existsSync(c)) ?? target;
 }
 
 /** All script files under a path (the file itself, or a directory walk). */
@@ -342,6 +437,8 @@ export function emitSkill(
 
   const bundled = new Set<string>();
 
+  const dynamicRefs: string[] = [];
+
   /**
    * Resolve a ${CLAUDE_PLUGIN_ROOT}-relative reference (found either in the
    * top-level SKILL.md or inside a nested bundled doc) and bundle it.
@@ -353,23 +450,34 @@ export function emitSkill(
     }
     // Path doesn't exist verbatim. If it's a runtime-computed (placeholder)
     // path, bundle its static parent directory so the path resolves at runtime.
-    const isDynamic = ref.split("/").some(isPlaceholderSegment);
-    if (isDynamic) {
-      const prefix = staticPrefix(ref);
-      if (prefix && !NO_BULK_BUNDLE.has(prefix) && existsSync(join(pluginRoot, prefix))) {
-        copyInto(prefix);
-      } else {
-        warnings.push(
-          `DYNAMIC REF: ${ref} left as references/${ref} (resolved at runtime; parent not bundled)`,
-        );
-      }
+    // Deferred until everything else is bundled: a script may already have
+    // pulled in that parent (update.sh bundles template/ for template/<path>).
+    if (ref.split("/").some(isPlaceholderSegment)) {
+      dynamicRefs.push(ref);
       return;
     }
     warnings.push(`MISSING REFERENCE: ${ref} (referenced but not found in plugin root)`);
   }
 
+  function bundleDynamicRef(ref: string) {
+    const prefix = staticPrefix(ref);
+    if (prefix && isBundled(prefix)) return;
+    if (prefix && !NO_BULK_BUNDLE.has(prefix) && existsSync(join(pluginRoot, prefix))) {
+      copyInto(prefix);
+    } else {
+      warnings.push(
+        `DYNAMIC REF: ${ref} left as references/${ref} (resolved at runtime; parent not bundled)`,
+      );
+    }
+  }
+
+  /** Whether relPath, or a directory containing it, is already bundled. */
+  function isBundled(relPath: string): boolean {
+    return [...bundled].some((b) => relPath === b || relPath.startsWith(`${b}/`));
+  }
+
   function copyInto(relPath: string) {
-    if (bundled.has(relPath)) return;
+    if (isBundled(relPath)) return;
     const src = join(pluginRoot, relPath);
     const dest = join(skillDir, "references", relPath);
     mkdirSync(dirname(dest), { recursive: true });
@@ -389,18 +497,22 @@ export function emitSkill(
         for (const nestedRef of nestedRefs) bundleRef(nestedRef);
       }
     }
+    // Shell scripts read plugin files through $PLUGIN_ROOT at runtime (e.g.
+    // scaffold.sh copies $PLUGIN_ROOT/template); bundle those explicitly, even
+    // directories NO_BULK_BUNDLE keeps out of placeholder resolution.
+    if (st.isFile() && relPath.endsWith(".sh")) {
+      for (const shellRef of shellRootRefs(readFileSync(src, "utf-8"))) {
+        if (existsSync(join(pluginRoot, shellRef))) copyInto(shellRef);
+        else warnings.push(`MISSING REFERENCE: ${relPath} reads $PLUGIN_ROOT/${shellRef} (not found)`);
+      }
+    }
     // Follow relative imports so bundled scripts stay runnable: references/
     // preserves the plugin-root-relative layout, so each import target lands
     // exactly where the importing file expects it.
     for (const scriptFile of scriptFilesUnder(src)) {
       const scriptRel = relative(pluginRoot, scriptFile);
       for (const spec of relativeImports(readFileSync(scriptFile, "utf-8"))) {
-        let target = resolve(dirname(scriptFile), spec);
-        if (!existsSync(target) && spec.endsWith(".js")) {
-          // TS ESM convention: './x.js' in a .ts file compiles from './x.ts'.
-          const tsTarget = target.replace(/\.js$/, ".ts");
-          if (existsSync(tsTarget)) target = tsTarget;
-        }
+        const target = resolveImport(resolve(dirname(scriptFile), spec));
         const targetRel = relative(pluginRoot, target);
         if (targetRel.startsWith("..") || !existsSync(target)) {
           warnings.push(`MISSING IMPORT: ${scriptRel} imports ${spec} (${targetRel} not found)`);
@@ -413,6 +525,9 @@ export function emitSkill(
 
   for (const ref of result.references) {
     bundleRef(ref);
+  }
+  for (const ref of dynamicRefs) {
+    bundleDynamicRef(ref);
   }
 
   return warnings;
@@ -507,15 +622,20 @@ export function renderIndex(
     "",
     "## Install",
     "",
-    "Install an individual skill from this repo with the skills.sh CLI:",
+    "Install with the skills.sh CLI — the whole collection, or one skill:",
     "",
     "```sh",
-    "npx skills add Anglesite/anglesite/agent-skills/<skill>",
+    "npx skills add Anglesite/anglesite-skills/agent-skills",
+    "npx skills add Anglesite/anglesite-skills/agent-skills/<skill>",
     "```",
     "",
-    "> **Note:** Anglesite is not yet listed in the skills.sh public registry.",
-    "> Install directly by path as shown above; `npx skills find anglesite` will not",
-    "> return results until a registry submission is made.",
+    "Always include the `agent-skills/` path: the repo's `skills/` directory holds the",
+    "Claude Code plugin sources, which depend on `${CLAUDE_PLUGIN_ROOT}` and only run",
+    "inside the plugin.",
+    "",
+    "> **Listing:** skills.sh has no submission step — its directory and",
+    "> `npx skills find` are populated from the CLI's anonymous install telemetry for",
+    "> public GitHub repos. A skill appears once it has been installed by path as above.",
     "",
     "## Skills",
     "",
@@ -524,7 +644,7 @@ export function renderIndex(
   ];
   for (const s of sorted) {
     lines.push(
-      `| \`${s.name}\` | \`npx skills add Anglesite/anglesite/agent-skills/${s.name}\` | ${s.description} |`,
+      `| \`${s.name}\` | \`npx skills add Anglesite/anglesite-skills/agent-skills/${s.name}\` | ${s.description} |`,
     );
   }
   lines.push("");

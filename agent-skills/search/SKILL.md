@@ -1,13 +1,13 @@
 ---
 name: search
-description: "Add on-site search so visitors can find content quickly"
+description: "Add on-site search so visitors can find content quickly. Use when the site has enough pages or posts that visitors need a search box to find things."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm install *), Bash(npm run build), Bash(npx astro check), Write, Read, Glob
+allowed-tools: "Bash(npm install *) Bash(npm run build) Bash(npx astro check) Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

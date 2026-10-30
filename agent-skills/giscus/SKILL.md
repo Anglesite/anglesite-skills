@@ -1,13 +1,13 @@
 ---
 name: giscus
-description: "Add blog comments via Giscus (uses GitHub Discussions as the storage backend)"
+description: "Add blog comments via Giscus (uses GitHub Discussions as the storage backend). Use when the owner wants readers to comment on blog posts without running a comment database."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Bash(npx astro check), Bash(grep *), Write, Read, Edit, Glob
+allowed-tools: "Bash(npm run build) Bash(npx astro check) Bash(grep *) Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

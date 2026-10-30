@@ -59,9 +59,10 @@ jobs:
       - name: Verify Open Agent Skills export is up to date
         run: |
           npm run build:agent-skills
-          if ! git diff --quiet agent-skills/; then
+          # --porcelain also catches new untracked files (e.g. a new companion doc).
+          if [ -n "$(git status --porcelain agent-skills/)" ]; then
             echo "::error::agent-skills/ is stale — run 'npm run build:agent-skills' and commit the result"
-            git diff --stat agent-skills/
+            git status --short agent-skills/
             exit 1
           fi
 

@@ -1,13 +1,13 @@
 ---
 name: tracking
-description: "Embed Meta Pixel, Google Ads / GA4, LinkedIn, TikTok, Pinterest, or X conversion pixels via @astrojs/partytown (off the main thread), plus Microsoft Clarity analytics (heatmaps + session recording) on the main thread. All gated behind cookie consent."
+description: "Embed Meta Pixel, Google Ads / GA4, LinkedIn, TikTok, Pinterest, or X conversion pixels via @astrojs/partytown (off the main thread), plus Microsoft Clarity analytics (heatmaps + session recording) on the main thread. All gated behind cookie consent. Use when the owner runs ads and needs a Meta, Google, LinkedIn, TikTok, Pinterest, or X conversion pixel, or wants Microsoft Clarity heatmaps."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm install *), Bash(npm run build), Bash(npx astro check), Bash(grep *), Write, Read, Edit, Glob
+allowed-tools: "Bash(npm install *) Bash(npm run build) Bash(npx astro check) Bash(grep *) Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

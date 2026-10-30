@@ -1,13 +1,13 @@
 ---
 name: share
-description: "Add native sharing to pages and blog posts via the Web Share API"
+description: "Add native sharing to pages and blog posts via the Web Share API. Use when the owner wants visitors to easily share pages or posts from their phone without third-party share widgets."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Write, Read, Glob, Edit
+allowed-tools: "Bash(npm run build) Write Read Glob Edit"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

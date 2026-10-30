@@ -1,13 +1,13 @@
 ---
 name: testimonials
-description: "Set up customer review collection, moderation, and display with star ratings"
+description: "Set up customer review collection, moderation, and display with star ratings. Use when the owner wants to collect, approve, and show customer reviews or testimonials on the site."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run build), Bash(npx wrangler *), Write, Read, Glob
+allowed-tools: "Bash(npm run build) Bash(npx wrangler *) Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

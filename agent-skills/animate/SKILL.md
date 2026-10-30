@@ -1,13 +1,13 @@
 ---
 name: animate
-description: "Design CSS animations: hover effects, scroll reveals, page transitions"
+description: "Design CSS animations: hover effects, scroll reveals, page transitions. Use when the owner asks for motion — hover effects, fade-ins on scroll, page transitions, or making the site feel more lively — while respecting reduced-motion preferences."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Glob
+allowed-tools: "Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

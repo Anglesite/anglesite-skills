@@ -1,13 +1,13 @@
 ---
 name: snipcart
-description: "Set up Snipcart ecommerce for a small physical product catalog"
+description: "Set up Snipcart ecommerce for a small physical product catalog. Use when the owner has a small catalog of physical products and wants a lightweight cart without a full commerce platform."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Edit, Glob, Bash(npm run build), Bash(npx astro check)
+allowed-tools: "Write Read Edit Glob Bash(npm run build) Bash(npx astro check)"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

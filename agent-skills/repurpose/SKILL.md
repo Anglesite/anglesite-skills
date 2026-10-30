@@ -1,13 +1,13 @@
 ---
 name: repurpose
-description: "Generate per-platform social media post variants from a blog post"
+description: "Generate per-platform social media post variants from a blog post. Use when the owner wants to share a blog post on social media and needs ready-to-post versions for each platform."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Glob
+allowed-tools: "Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

@@ -1,13 +1,13 @@
 ---
 name: consent
-description: "Add a category-based GDPR/CCPA cookie consent banner that gates third-party loads"
+description: "Add a category-based GDPR/CCPA cookie consent banner that gates third-party loads. Use when the site loads analytics, ads pixels, or other third-party embeds and needs a cookie consent banner for GDPR, CCPA, or similar privacy rules."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Bash(grep *), Write, Read, Glob, Edit
+allowed-tools: "Bash(npm run build) Bash(grep *) Write Read Glob Edit"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

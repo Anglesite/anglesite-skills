@@ -1,8 +1,13 @@
 ---
 name: share
 description: "Add native sharing to pages and blog posts via the Web Share API"
+when_to_use: "Use when the owner wants visitors to easily share pages or posts from their phone without third-party share widgets."
 allowed-tools: Bash(npm run build), Write, Read, Glob, Edit
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add a share button that uses the Web Share API on supporting browsers (mobile Safari, Chrome, Edge) and falls back to copy-to-clipboard on desktop. No third-party share widgets, no social media SDK embeds, no tracking pixels — just the platform's native share sheet.

@@ -1,6 +1,10 @@
 ---
 name: serena
 description: Set up Serena for semantic, symbol-level code navigation when working on the Anglesite plugin itself — indexing the project and starting its MCP server via uvx. Use when tracing cross-skill references or finding symbol usages across the skills tree.
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 # Serena (optional, plugin development)

@@ -1,8 +1,13 @@
 ---
 name: og-images
 description: "Generate branded OG images for social sharing: per-page and site-wide, using Satori"
+when_to_use: "Use when the owner wants nicer link previews when pages are shared on social media or in messaging apps."
 user-invocable: false
 allowed-tools: Bash(npm run ai-images), Bash(npm run ai-og), Bash(npx wrangler r2 *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, Read, Glob, Write
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Generate branded Open Graph images so every page has a social sharing preview. Called automatically during design, page creation, SEO audits, and deploy — not invoked directly by the owner.

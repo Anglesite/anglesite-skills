@@ -1,13 +1,13 @@
 ---
 name: business-info
-description: "Collect and display business hours, address, phone, and LocalBusiness JSON-LD"
+description: "Collect and display business hours, address, phone, and LocalBusiness JSON-LD. Use when the site needs business hours, an address, phone number, map, or LocalBusiness structured data, or that information has changed."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Glob
+allowed-tools: "Write Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

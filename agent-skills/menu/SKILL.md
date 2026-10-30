@@ -1,13 +1,13 @@
 ---
 name: menu
-description: "Create, import, or edit a restaurant menu from PDF, photo, or scratch"
+description: "Create, import, or edit a restaurant menu from PDF, photo, or scratch. Use when a restaurant, cafe, bar, or food business wants to add or update its menu, including from a PDF or photo."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run dev), Bash(npm run build), Read, Write, Glob, Grep
+allowed-tools: "Bash(npm run dev) Bash(npm run build) Read Write Glob Grep"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

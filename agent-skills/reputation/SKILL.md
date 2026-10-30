@@ -1,13 +1,13 @@
 ---
 name: reputation
-description: "Surface review response suggestions and competitive insights based on business type"
+description: "Surface review response suggestions and competitive insights based on business type. Use when the owner asks how to respond to customer reviews or wants to understand how competitors are perceived."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(date *), Read, Glob
+allowed-tools: "Bash(date *) Read Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

@@ -1,8 +1,13 @@
 ---
 name: contact
 description: "Set up a contact form with Cloudflare Workers and Turnstile"
+when_to_use: "Use when the owner wants a contact form so visitors can send messages without exposing an email address."
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(npx astro check), Bash(grep *), Write, Read, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Set up a contact form that forwards messages to the owner's email. Uses a Cloudflare Worker backend with Turnstile spam protection. By default no data is stored — messages are forwarded and discarded. To also persist them to a browseable inbox in Keystatic, run `/anglesite:inbox` after this skill completes.

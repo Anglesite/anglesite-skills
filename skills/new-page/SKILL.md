@@ -1,9 +1,14 @@
 ---
 name: new-page
 description: "Create a new page with SEO and accessibility"
+when_to_use: "Use when the owner asks to add a new page, such as About, Services, FAQ, or a landing page."
 user-invocable: false
 argument-hint: "[page name or purpose]"
 allowed-tools: Write, Read, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Create a new page on the site.

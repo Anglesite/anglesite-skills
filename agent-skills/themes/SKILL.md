@@ -1,13 +1,13 @@
 ---
 name: themes
-description: "Present pre-built visual themes from freedesignmd plus built-in quick-picks, then apply the owner's choice"
+description: "Present pre-built visual themes from freedesignmd plus built-in quick-picks, then apply the owner's choice. Use when the owner wants to quickly pick a ready-made look for the site rather than design one from scratch."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: WebFetch, Write, Read, Edit, Glob
+allowed-tools: "WebFetch Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

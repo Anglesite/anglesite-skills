@@ -1,13 +1,13 @@
 ---
 name: newsletter
-description: "Set up email newsletter with Buttondown, subscribe form, and auto-syndication"
+description: "Set up email newsletter with Buttondown, subscribe form, and auto-syndication. Use when the owner wants to collect email subscribers, send a newsletter, or email new blog posts to followers."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22). Deploy/provisioning steps require a Cloudflare account and Wrangler."
-allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(curl *), Bash(grep *), Write, Read, Edit, Glob
+allowed-tools: "Bash(npm run build) Bash(npx wrangler *) Bash(curl *) Bash(grep *) Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

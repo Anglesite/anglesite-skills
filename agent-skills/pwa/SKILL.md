@@ -1,13 +1,13 @@
 ---
 name: pwa
-description: "Make the site installable as a Progressive Web App with offline support"
+description: "Make the site installable as a Progressive Web App with offline support. Use when the owner wants visitors to install the site like an app on their phone or use it offline."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run build), Bash(node *), Write, Read, Glob, Edit
+allowed-tools: "Bash(npm run build) Bash(node *) Write Read Glob Edit"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "user-facing"
 ---
 

@@ -1,8 +1,13 @@
 ---
 name: copy-edit
 description: "Audit and coach website copy for clarity, tone, and brand voice"
+when_to_use: "Use when the owner asks to improve, proofread, or rewrite site text, or wants feedback on clarity, tone, or brand voice."
 user-invocable: false
 allowed-tools: Write, Read, Edit, Glob
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Audit website copy quality across all pages and provide guidance-first coaching. Called during `/anglesite:check`, `/anglesite:deploy`, after `/anglesite:new-page`, or when the owner asks about their writing. Not invoked directly by the owner.

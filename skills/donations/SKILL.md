@@ -1,8 +1,13 @@
 ---
 name: donations
 description: "Add a donation button or page (Stripe, Liberapay, or GitHub Sponsors) with suggested amounts, recurring defaults, optional goal widget, and 501(c)(3) tax-receipt template"
+when_to_use: "Use when a nonprofit, creator, or open-source project wants to accept donations or sponsorships, or needs a tax-receipt template."
 allowed-tools: Bash(npm run build), Write, Read, Edit, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add a donation flow to the owner's site. Donations are not products — copy, recurrence, and (for nonprofits) tax-receipt semantics differ from `/anglesite:buy-button`. Use this skill when the owner wants to accept tips, ongoing support, fundraising for a goal, or 501(c)(3) charitable contributions.

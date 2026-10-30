@@ -1,8 +1,13 @@
 ---
 name: giscus
 description: "Add blog comments via Giscus (uses GitHub Discussions as the storage backend)"
+when_to_use: "Use when the owner wants readers to comment on blog posts without running a comment database."
 allowed-tools: Bash(npm run build), Bash(npx astro check), Bash(grep *), Write, Read, Edit, Glob
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Add comment threads to blog posts using [Giscus](https://giscus.app), which stores comments as GitHub Discussions on a repository the owner controls. No third-party tracker, no ads, no monthly fee, no separate moderation dashboard — moderation happens in the GitHub UI.

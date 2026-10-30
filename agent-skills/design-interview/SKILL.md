@@ -1,13 +1,13 @@
 ---
 name: design-interview
-description: "Redo the visual identity and branding"
+description: "Redo the visual identity and branding. Use when the owner wants to change the look and feel, rebrand, or pick new colors, fonts, or overall visual style."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Bash(npm run *), WebFetch, Write, Read, Edit, Glob
+allowed-tools: "Bash(npm run *) WebFetch Write Read Edit Glob"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 

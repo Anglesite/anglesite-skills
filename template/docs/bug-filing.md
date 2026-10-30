@@ -89,7 +89,7 @@ Do NOT file issues for:
 
 ## Bugs in the Anglesite plugin itself
 
-Some bugs are not in the owner's site — they're in the Anglesite plugin: a skill that gives wrong instructions, a scaffold file that's missing, a template that doesn't build, or a hook that misfires. These should be reported to the plugin repository (`Anglesite/anglesite`), not the owner's site repo.
+Some bugs are not in the owner's site — they're in the Anglesite plugin: a skill that gives wrong instructions, a scaffold file that's missing, a template that doesn't build, or a hook that misfires. These should be reported to the plugin repository (`Anglesite/anglesite-skills`), not the owner's site repo.
 
 The `gh` CLI is typically scoped to the owner's site repo and may not have access to create issues on the plugin repo. Instead, open the owner's browser with a pre-filled GitHub issue:
 
@@ -98,7 +98,7 @@ import { openCommand } from "./scripts/platform.js";
 
 const title = encodeURIComponent("Bug title here");
 const body = encodeURIComponent(`## What happened\n\nDescription of the problem.\n\n## Steps to reproduce\n\n1. Run \`/anglesite:skill-name\`\n2. ...\n\n## Expected behavior\n\nWhat should have happened.\n\n## Environment\n\n- Anglesite version: (read from package.json)\n- Node: ${process.version}\n- OS: ${process.platform}`);
-const url = `https://github.com/Anglesite/anglesite/issues/new?title=${title}&body=${body}&labels=bug`;
+const url = `https://github.com/Anglesite/anglesite-skills/issues/new?title=${title}&body=${body}&labels=bug`;
 ```
 
 Then run the open command:
@@ -113,7 +113,7 @@ Use `openCommand(url)` from `scripts/platform.ts` to get the right command for t
 
 ### When to file against the plugin
 
-File against `Anglesite/anglesite` when:
+File against `Anglesite/anglesite-skills` when:
 
 - A scaffolded template file is wrong or missing
 - A skill gives incorrect instructions or fails unexpectedly

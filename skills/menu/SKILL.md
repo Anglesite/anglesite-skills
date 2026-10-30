@@ -1,8 +1,13 @@
 ---
 name: menu
 description: "Create, import, or edit a restaurant menu from PDF, photo, or scratch"
+when_to_use: "Use when a restaurant, cafe, bar, or food business wants to add or update its menu, including from a PDF or photo."
 allowed-tools: Bash(npm run dev), Bash(npm run build), Read, Write, Glob, Grep
 disable-model-invocation: true
+# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
+# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+metadata:
+  internal: true
 ---
 
 Create, import from PDF/image, or edit an existing restaurant menu. Generates Keystatic collections, responsive HTML pages, structured data, and optional kiosk mode.

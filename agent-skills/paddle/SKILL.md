@@ -1,13 +1,13 @@
 ---
 name: paddle
-description: "Set up Paddle checkout for software licensing, SaaS subscriptions, or metered billing"
+description: "Set up Paddle checkout for software licensing, SaaS subscriptions, or metered billing. Use when the owner sells software, licenses, SaaS subscriptions, or usage-based plans and wants Paddle to handle billing and tax."
 license: ISC
 compatibility: "Designed for Claude Code / compatible agents operating inside an Anglesite project (Astro + Keystatic, Node >=22)."
-allowed-tools: Write, Read, Edit, Glob, Bash(npm run build), Bash(npx astro check)
+allowed-tools: "Write Read Edit Glob Bash(npm run build) Bash(npx astro check)"
 metadata:
   author: "David W. Keith"
   version: "1.9.0"
-  source: "https://github.com/Anglesite/anglesite"
+  source: "https://github.com/Anglesite/anglesite-skills"
   invocation: "model-only"
 ---
 
