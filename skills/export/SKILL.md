@@ -4,8 +4,8 @@ description: "Produce a portable export of the site (built HTML, content, media,
 when_to_use: "Use when the owner wants to leave Anglesite, self-host elsewhere, move to another platform, or keep a portable copy of the whole site."
 allowed-tools: Bash(npm run build), Bash(mkdir *), Bash(cp *), Bash(rsync *), Bash(zip *), Bash(ls *), Bash(find *), Bash(du *), Bash(grep *), Bash(date *), Bash(git rev-parse *), Bash(npx wrangler r2 *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, Read, Write
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

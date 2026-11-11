@@ -4,8 +4,8 @@ description: "Add a category-based GDPR/CCPA cookie consent banner that gates th
 when_to_use: "Use when the site loads analytics, ads pixels, or other third-party embeds and needs a cookie consent banner for GDPR, CCPA, or similar privacy rules."
 allowed-tools: Bash(npm run build), Bash(grep *), Write, Read, Glob, Edit
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

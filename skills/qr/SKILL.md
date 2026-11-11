@@ -4,8 +4,8 @@ description: "Generate QR codes with UTM tracking, shortlink redirects, and camp
 when_to_use: "Use when the owner needs a QR code for print, signage, packaging, or an event, especially one that tracks where scans come from."
 user-invocable: false
 allowed-tools: Bash(npm run ai-qr), Write, Read, Glob
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

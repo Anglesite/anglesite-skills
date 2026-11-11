@@ -1,0 +1,68 @@
+name: Publish Open Agent Skills
+
+# Mirrors the generated export (bin/build-agent-skills.ts) into Anglesite/agent-skills,
+# the repo skills.sh and `npx skills add` install from. See docs/dev/agent-skills.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-agent-skills
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for the deploy key
+        id: key
+        env:
+          KEY: ${{ secrets.AGENT_SKILLS_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::warning::AGENT_SKILLS_DEPLOY_KEY is not set — skipping publish (see docs/dev/agent-skills.md)"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - if: steps.key.outputs.present == 'true'
+        run: npm ci
+
+      - name: Build export
+        if: steps.key.outputs.present == 'true'
+        run: npx tsx bin/build-agent-skills.ts --strict --out "$RUNNER_TEMP/export"
+
+      - name: Check out Anglesite/agent-skills
+        if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: Anglesite/agent-skills
+          ssh-key: ${{ secrets.AGENT_SKILLS_DEPLOY_KEY }}
+          path: publish
+
+      - name: Mirror and push
+        if: steps.key.outputs.present == 'true'
+        working-directory: publish
+        run: |
+          rsync -a --delete --exclude .git "$RUNNER_TEMP/export/" ./
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Anglesite/agent-skills is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Build from Anglesite/anglesite-skills@${GITHUB_SHA::7}" \
+            -m "https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          git push origin HEAD

@@ -4,8 +4,8 @@ description: "Set up Snipcart ecommerce for a small physical product catalog"
 when_to_use: "Use when the owner has a small catalog of physical products and wants a lightweight cart without a full commerce platform."
 allowed-tools: Write, Read, Edit, Glob, Bash(npm run build), Bash(npx astro check)
 user-invocable: false
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

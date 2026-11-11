@@ -1,4 +1,4 @@
-// Guard for the Open Agent Skills export (agent-skills/): every relative
+// Guard for the Open Agent Skills export (Anglesite/agent-skills): every relative
 // import specifier in a bundled .mjs script must resolve to a file that was
 // also bundled. Uses its own specifier regex, independent of the transformer's,
 // so a bug in the builder's extraction can't hide from this test.
@@ -6,8 +6,9 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname, relative, sep } from "node:path";
+import { buildPublishTree } from "./helpers/agent-skills-build.ts";
 
-const OUT_DIR = resolve(__dirname, "..", "agent-skills");
+const OUT_DIR = buildPublishTree().skillsOut;
 
 // Static imports/re-exports (`from './x.mjs'`), side-effect imports
 // (`import './x.mjs'`), and dynamic `import('./x.mjs')`.
@@ -39,7 +40,7 @@ describe("agent-skills bundled .mjs relative imports", () => {
         ).toBe(true);
         expect(
           relative(OUT_DIR, target).startsWith(".."),
-          `imports ${spec} which escapes agent-skills/`,
+          `imports ${spec} which escapes the export`,
         ).toBe(false);
       }
     },

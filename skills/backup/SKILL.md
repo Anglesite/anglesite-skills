@@ -4,8 +4,8 @@ description: "Back up site changes to GitHub, or restore an earlier snapshot"
 when_to_use: "Use when the owner asks to save or back up their work, see what changed, undo recent changes, or restore an earlier version of the site."
 allowed-tools: Bash(git status *), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(git log *), Bash(git diff *), Bash(git checkout *), Bash(git branch *), Bash(git tag *), Bash(git show *), Bash(git stash *), Bash(git fetch *), Bash(git rev-parse *), Bash(npx tsx *), Read
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

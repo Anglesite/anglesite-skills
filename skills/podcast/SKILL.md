@@ -4,8 +4,8 @@ description: "Set up a podcast on the site — episodes, RSS feed with iTunes na
 when_to_use: "Use when the owner wants to publish a podcast, host episodes on the site, or submit a show to Apple Podcasts, Spotify, or other directories."
 allowed-tools: Bash(npm run build), Bash(npm run dev), Bash(npx wrangler r2 *), Bash(wc -c *), Bash(stat *), mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_bucket_get, mcp__cloudflare__r2_buckets_list, mcp__cloudflare__r2_bucket_delete, Read, Write, Edit, Glob, Grep
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

@@ -4,8 +4,8 @@ description: "Deploy self-owned IndieAuth, Webmention, and Micropub endpoints on
 when_to_use: "Use when the owner wants to own their identity and interactions on the open web — sign in with their domain, send or receive Webmentions, or post via Micropub."
 allowed-tools: Bash(npm run build), Bash(npm install *), Bash(npx wrangler *), Bash(openssl *), Bash(grep *), Bash(gh *), Bash(node *), Bash(mktemp *), Bash(printf *), Bash(rm *), Write, Read, Edit, Glob, mcp__cloudflare__accounts_list, mcp__cloudflare__set_active_account, mcp__cloudflare__d1_database_create, mcp__cloudflare__d1_databases_list, mcp__cloudflare__d1_database_get, mcp__cloudflare__r2_bucket_create, mcp__cloudflare__r2_buckets_list
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---
