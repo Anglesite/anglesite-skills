@@ -4,8 +4,8 @@ description: "Set up Paddle checkout for software licensing, SaaS subscriptions,
 when_to_use: "Use when the owner sells software, licenses, SaaS subscriptions, or usage-based plans and wants Paddle to handle billing and tax."
 allowed-tools: Write, Read, Edit, Glob, Bash(npm run build), Bash(npx astro check)
 user-invocable: false
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

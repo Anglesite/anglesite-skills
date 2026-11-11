@@ -4,8 +4,8 @@ description: "Add ecommerce to your site — sells physical goods, digital downl
 when_to_use: "Use when the owner wants to sell products or services online, asks about a shop, cart, checkout, or which ecommerce platform fits their business."
 allowed-tools: Bash(npx wrangler *), Bash(npm run build), Write, Read, Edit, Glob
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

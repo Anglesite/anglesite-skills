@@ -34,7 +34,7 @@
 │   └── index.mjs                 MCP stdio server entry point
 ├── bin/
 │   ├── build-instructions.ts     Agent instruction file validator
-│   ├── build-agent-skills.ts     Generates agent-skills/ (Open Agent Skills export)
+│   ├── build-agent-skills.ts     Builds the Open Agent Skills export (published to Anglesite/agent-skills)
 │   ├── generate-skill-registry.ts  Generates docs/dev/skill-registry.md from frontmatter
 │   └── release.ts                Semantic version bumper (updates all manifests)
 ├── package.json                  Dev dependencies and test scripts

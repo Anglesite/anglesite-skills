@@ -4,8 +4,8 @@ description: "Gate premium content with newsletter (free) or Stripe (paid) — s
 when_to_use: "Use when the owner wants members-only content, paywalled posts, or a free-signup gate on premium pages."
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(npx astro check), Bash(grep *), Bash(node *), Write, Read, Edit, Glob, mcp__cloudflare__kv_namespace_create, mcp__cloudflare__kv_namespace_get, mcp__cloudflare__kv_namespaces_list, mcp__cloudflare__accounts_list
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

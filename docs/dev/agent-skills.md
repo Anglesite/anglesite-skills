@@ -5,13 +5,23 @@ Anglesite is distributed two ways from one source:
 1. **Claude Code plugin** — the `skills/` tree, installed from the
    `Anglesite/anglesite-skills` marketplace.
 2. **Open Agent Skills** — a spec-compliant ([agentskills.io](https://agentskills.io) /
-   [skills.sh](https://www.skills.sh)) export under `agent-skills/`, installable with
-   `npx skills add Anglesite/anglesite-skills/agent-skills/<skill>` (or
-   `…/agent-skills` for the whole collection).
+   [skills.sh](https://www.skills.sh)) export published to
+   [`Anglesite/agent-skills`](https://github.com/Anglesite/agent-skills), installable with
+   `npx skills add Anglesite/agent-skills` (or `--skill <name>` for one).
 
-The two coexist. `skills/` is the **source of truth**; `agent-skills/` is **generated**
-by `bin/build-agent-skills.ts` (`npm run build:agent-skills`) and committed so the
-skills.sh CLI can resolve individual skills by path.
+The two coexist. `skills/` is the **source of truth**. The export is **generated** by
+`bin/build-agent-skills.ts` (`npm run build:agent-skills`) into the gitignored
+`dist/agent-skills/`, and `.github/workflows/publish-agent-skills.yml` mirrors it into
+`Anglesite/agent-skills` on every push to `main`. Nothing generated is committed here.
+
+## Why a separate repo
+
+skills.sh builds each skill's install command from the repo and skill name alone
+(`npx skills add <owner>/<repo> --skill <name>`), dropping any subpath. Naming a skill
+makes the CLI include skills marked `metadata.internal`, and it scans `skills/` first,
+so in this repo that command would always install the raw plugin source. Neither
+`skills.sh.json` nor a plugin manifest can exclude `skills/`. In `Anglesite/agent-skills`
+the export *is* `skills/`, so every command skills.sh shows installs the right files.
 
 ## Why a build step (not dual-format files)
 
@@ -30,7 +40,7 @@ single file cannot satisfy both formats:
 
 ## What the transformer does
 
-Per `skills/<name>/SKILL.md` it emits `agent-skills/<name>/`:
+Per `skills/<name>/SKILL.md` it emits `dist/agent-skills/skills/<name>/`:
 
 - **Frontmatter** normalized to the spec: `name`, `description` (source
   `description` + `when_to_use`), `license: ISC`, `compatibility` (Cloudflare/Node
@@ -57,45 +67,44 @@ Per `skills/<name>/SKILL.md` it emits `agent-skills/<name>/`:
   `import`, `convert`, and `design-import` ship the full `template/` and can scaffold
   standalone. (`template/` is otherwise kept out of placeholder bundling.)
 
-`agent-skills/README.md` is a generated index with per-skill install commands.
+A full build also writes the publish repo's `README.md` (index with install commands)
+and `LICENSE`.
 
-## Discovery: why plugin sources are marked internal
+## Why plugin sources are marked internal
 
-The skills.sh CLI scans a repo's `skills/` and `.claude/skills/` directories, so a bare
-`npx skills add Anglesite/anglesite-skills` would otherwise offer the raw plugin
-sources (dangling `${CLAUDE_PLUGIN_ROOT}` references) and the internal `serena` dev
-skill. Every plugin source therefore carries `metadata.internal: true`, which hides it
-from normal discovery; with nothing found in the standard locations the CLI falls back
-to a recursive search and lists the 56 `agent-skills/` entries instead. Naming a skill
-explicitly (`--skill start`) makes the CLI include internal skills again and it then
-picks the shallower plugin source — so documented commands always include the
-`agent-skills/` path. Keep the `metadata.internal` block when adding a skill.
+Every plugin source (and the `serena` dev skill) carries `metadata.internal: true`, so
+`npx skills add Anglesite/anglesite-skills` doesn't offer the raw plugin sources, which
+only work inside the plugin. Keep the block when adding a skill.
 
 ## Validation
 
 `bin/build-agent-skills.ts` validates names and descriptions against the spec rules
 (name: 1–64 chars, lowercase/hyphens, no leading/trailing/consecutive hyphens;
-description: 1–1024 chars, and a `when_to_use` must exist) and prints warnings. `tests/build-agent-skills.test.ts`
-unit-tests the transforms, asserts the committed `agent-skills/*/SKILL.md` matches a
-fresh build, and checks every generated skill against the spec (description says when
-to use it, space-separated `allowed-tools`, ≤500 lines). CI
-(`.github/workflows/test.yml`) re-runs the build and fails if `git status` shows any
-change — modified or new — under `agent-skills/`.
+description: 1–1024 chars, and a `when_to_use` must exist) and prints warnings (`--strict` exits 1 on any). `tests/build-agent-skills.test.ts`
+unit-tests the transforms, builds the full tree into a temp dir, and checks every
+generated skill against the spec (description says when to use it, space-separated
+`allowed-tools`, ≤500 lines). CI (`.github/workflows/test.yml`) runs the strict build.
 
-## Keeping it in sync
+## Publishing
 
-Never edit `agent-skills/` by hand. Edit `skills/` and run:
+Never edit `Anglesite/agent-skills` by hand — edit `skills/` here. To preview locally:
 
 ```sh
-npm run build:agent-skills   # all skills
-npx tsx bin/build-agent-skills.ts seo deploy   # a subset (index not regenerated)
+npm run build:agent-skills                      # → dist/agent-skills/
+npx tsx bin/build-agent-skills.ts seo deploy    # a subset (index not regenerated)
+npx skills add ./dist/agent-skills --list       # what the skills CLI would see
 ```
+
+The publish workflow authenticates with a deploy key: the public half is a write-enabled
+deploy key on `Anglesite/agent-skills`, the private half is the
+`AGENT_SKILLS_DEPLOY_KEY` secret here. Without the secret the workflow skips with a
+warning. Run it by hand from the Actions tab (`workflow_dispatch`) after rotating keys.
 
 ## Known limitations / follow-ups
 
 - **Duplicated bundles.** Skills that read a business-type guide
   (`docs/smb/<BUSINESS_TYPE>.md`) bundle the whole `docs/smb/` catalog (688 KB), and
-  five skills bundle `template/` (2.3 MB). The checked-out tree is ~22 MB, but git
+  five skills bundle `template/` (2.3 MB). The published tree is ~22 MB, but git
   stores identical files once, so the copies add almost nothing to a clone; each
   installed skill stays self-contained. Not bundling would break standalone installs.
 - **Nested references (resolved for markdown).** Bundled `.md` docs (e.g. `import`'s
@@ -113,4 +122,6 @@ npx tsx bin/build-agent-skills.ts seo deploy   # a subset (index not regenerated
   that server isn't present, so the click-to-edit tools are plugin-only.
 - **Listing.** skills.sh has no submission step: its directory and `npx skills find`
   are populated from the CLI's anonymous install telemetry for public GitHub repos.
-  Anglesite shows up once someone installs from `Anglesite/anglesite-skills/agent-skills`.
+  Anglesite shows up once someone installs from `Anglesite/agent-skills`. The CLI only
+  reports installs after confirming the repo is public with Node's `fetch`, which
+  ignores `HTTPS_PROXY`; behind a proxy, run it with `NODE_USE_ENV_PROXY=1`.
