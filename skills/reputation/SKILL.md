@@ -4,8 +4,8 @@ description: "Surface review response suggestions and competitive insights based
 when_to_use: "Use when the owner asks how to respond to customer reviews or wants to understand how competitors are perceived."
 user-invocable: false
 allowed-tools: Bash(date *), Read, Glob
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

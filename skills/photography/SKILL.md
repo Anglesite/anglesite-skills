@@ -4,8 +4,8 @@ description: "Generate a prioritized, site-type-specific shot list with phone ph
 when_to_use: "Use when the owner needs photos for the site and wants to know what to shoot and how to get good results with a phone."
 allowed-tools: Read, Glob, Write
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

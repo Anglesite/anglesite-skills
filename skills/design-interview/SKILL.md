@@ -4,8 +4,8 @@ description: "Redo the visual identity and branding"
 when_to_use: "Use when the owner wants to change the look and feel, rebrand, or pick new colors, fonts, or overall visual style."
 user-invocable: false
 allowed-tools: Bash(npm run *), WebFetch, Write, Read, Edit, Glob
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

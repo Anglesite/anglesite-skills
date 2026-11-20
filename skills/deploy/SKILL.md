@@ -4,8 +4,8 @@ description: "Build, security scan, and deploy to Cloudflare Workers"
 when_to_use: "Use when the owner asks to publish, launch, go live, deploy, or push changes to their live website."
 allowed-tools: Bash(npm run build), Bash(npm run deploy *), Bash(npm run preview *), Bash(npm run ai-linkcheck *), Bash(npm run ai-a11y *), Bash(npm run ai-a14y *), Bash(npm run ai-perf *), Bash(npm run ai-webmention-send *), Bash(npx wrangler *), Bash(grep *), Bash(find dist/ *), Bash(gh *), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(git checkout *), Bash(git merge *), Bash(git branch *), Bash(kill *), Write, Read, mcp__cloudflare__accounts_list, mcp__cloudflare__set_active_account, mcp__cloudflare__search_cloudflare_documentation
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

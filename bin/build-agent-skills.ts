@@ -8,12 +8,16 @@
 //   - cross-skill references to other SKILL.md files
 //
 // This transformer reads each skills/<name>/SKILL.md and emits a self-contained,
-// spec-compliant skill into agent-skills/<name>/ — leaving the plugin sources
-// untouched so the Claude Code plugin keeps working (coexistence).
+// spec-compliant skill into dist/agent-skills/skills/<name>/ — leaving the plugin
+// sources untouched so the Claude Code plugin keeps working (coexistence). CI
+// mirrors dist/agent-skills/ into the Anglesite/agent-skills repo, which is what
+// skills.sh and `npx skills add` install from.
 //
 // Usage:
-//   npx tsx bin/build-agent-skills.ts            # build all skills
-//   npx tsx bin/build-agent-skills.ts seo deploy # build only the named skills
+//   npx tsx bin/build-agent-skills.ts               # build all skills
+//   npx tsx bin/build-agent-skills.ts seo deploy    # build only the named skills
+//   npx tsx bin/build-agent-skills.ts --out <dir>   # build somewhere else
+//   npx tsx bin/build-agent-skills.ts --strict      # exit 1 on any warning
 //
 // See docs/decisions/ for context and docs/dev/agent-skills.md for the output
 // contract.
@@ -33,6 +37,10 @@ import { join, resolve, dirname, relative } from "node:path";
 const PLUGIN_VAR = "${CLAUDE_PLUGIN_ROOT}";
 
 const AUTHOR = "David W. Keith";
+/** Where the publish tree is built; dist/ is gitignored. */
+export const DEFAULT_OUT_DIR = "dist/agent-skills";
+/** The repo CI mirrors the build into, and that users install from. */
+export const PUBLISH_REPO = "Anglesite/agent-skills";
 const SOURCE = "https://github.com/Anglesite/anglesite-skills";
 
 // ---------------------------------------------------------------------------
@@ -534,6 +542,73 @@ export function emitSkill(
 }
 
 // ---------------------------------------------------------------------------
+// buildAll — the whole publish tree (what Anglesite/agent-skills holds)
+// ---------------------------------------------------------------------------
+
+export interface BuildAllOptions {
+  /** Plugin root (holds skills/, docs/, template/, package.json). */
+  root: string;
+  /** Output root. Skills land in <outRoot>/skills/<name>/. */
+  outRoot: string;
+  /** Build only these skills; the index and LICENSE are left alone. */
+  only?: string[];
+  log?: (line: string) => void;
+}
+
+export function buildAll({ root, outRoot, only = [], log = () => {} }: BuildAllOptions): {
+  names: string[];
+  warnings: number;
+} {
+  // Only skills/ is exported — deliberately NOT .claude/skills/, which holds
+  // Claude-Code-native skills for developing this plugin (never shipped to end
+  // users). Widening this glob would publish internal tooling to skills.sh.
+  const skillsDir = join(root, "skills");
+  const skillsOut = join(outRoot, "skills");
+  const version = JSON.parse(readFileSync(join(root, "package.json"), "utf-8")).version;
+
+  const names = readdirSync(skillsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && existsSync(join(skillsDir, e.name, "SKILL.md")))
+    .map((e) => e.name)
+    .filter((n) => only.length === 0 || only.includes(n))
+    .sort();
+
+  if (only.length > 0 && names.length === 0) {
+    throw new Error(`No matching skills for: ${only.join(", ")}`);
+  }
+
+  // A full build starts clean so a removed or renamed skill disappears.
+  if (only.length === 0) rmSync(skillsOut, { recursive: true, force: true });
+  mkdirSync(skillsOut, { recursive: true });
+
+  let totalWarnings = 0;
+  const built: { name: string; description: string; invocation: SkillClassification }[] = [];
+  for (const name of names) {
+    const content = readFileSync(join(skillsDir, name, "SKILL.md"), "utf-8");
+    const parsed = parseSkill(content, version);
+    const result = buildSkill(content, version);
+    const warnings = emitSkill(result, root, skillsOut);
+    built.push({ name, description: specDescription(parsed), invocation: classify(parsed) });
+    log(
+      `✓ ${name} — ${result.references.length} reference(s), ${result.crossSkillRefs.length} cross-skill mention(s)${
+        warnings.length ? `, ${warnings.length} warning(s)` : ""
+      }`,
+    );
+    for (const w of warnings) {
+      log(`    ⚠ ${w}`);
+      totalWarnings++;
+    }
+  }
+
+  // Regenerate the index only on a full build, so partial builds don't truncate it.
+  if (only.length === 0) {
+    writeFileSync(join(outRoot, "README.md"), renderIndex(built, version) + "\n");
+    cpSync(join(root, "LICENSE"), join(outRoot, "LICENSE"));
+  }
+
+  return { names, warnings: totalWarnings };
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -543,62 +618,29 @@ const isMain =
 
 if (isMain) {
   const root = resolve(import.meta.dirname ?? ".", "..");
-  // Only skills/ is exported — deliberately NOT .claude/skills/, which holds
-  // Claude-Code-native skills for developing this plugin (never shipped to end
-  // users). Widening this glob would publish internal tooling to skills.sh.
-  const skillsDir = join(root, "skills");
-  const outRoot = join(root, "agent-skills");
-  const version = JSON.parse(readFileSync(join(root, "package.json"), "utf-8")).version;
+  const args = process.argv.slice(2);
+  const strict = args.includes("--strict");
+  const outIdx = args.indexOf("--out");
+  const outRoot = outIdx >= 0 ? resolve(args[outIdx + 1]) : join(root, DEFAULT_OUT_DIR);
+  // Positional args (not flags, not the --out value) name a subset of skills.
+  const only = args.filter((a, i) => !a.startsWith("--") && !(outIdx >= 0 && i === outIdx + 1));
 
-  const only = process.argv.slice(2);
-  const names = readdirSync(skillsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(join(skillsDir, e.name, "SKILL.md")))
-    .map((e) => e.name)
-    .filter((n) => only.length === 0 || only.includes(n))
-    .sort();
-
-  if (only.length > 0 && names.length === 0) {
-    console.error(`No matching skills for: ${only.join(", ")}`);
-    process.exit(1);
-  }
-
-  mkdirSync(outRoot, { recursive: true });
-
-  let totalWarnings = 0;
-  const built: { name: string; description: string; invocation: SkillClassification }[] = [];
-  for (const name of names) {
-    const content = readFileSync(join(skillsDir, name, "SKILL.md"), "utf-8");
-    const parsed = parseSkill(content, version);
-    const result = buildSkill(content, version);
-    const warnings = emitSkill(result, root, outRoot);
-    built.push({ name, description: parsed.description, invocation: classify(parsed) });
-    const refCount = result.references.length;
-    const xCount = result.crossSkillRefs.length;
+  try {
+    const { names, warnings } = buildAll({ root, outRoot, only, log: (l) => console.log(l) });
     console.log(
-      `✓ ${name} — ${refCount} reference(s), ${xCount} cross-skill mention(s)${
-        warnings.length ? `, ${warnings.length} warning(s)` : ""
+      `\nBuilt ${names.length} skill(s) into ${relative(root, outRoot) || "."}/${
+        warnings ? ` (${warnings} warning(s))` : ""
       }`,
     );
-    for (const w of warnings) {
-      console.log(`    ⚠ ${w}`);
-      totalWarnings++;
-    }
+    if (strict && warnings > 0) process.exit(1);
+  } catch (e) {
+    console.error((e as Error).message);
+    process.exit(1);
   }
-
-  // Regenerate the index only on a full build, so partial builds don't truncate it.
-  if (only.length === 0) {
-    writeFileSync(join(outRoot, "README.md"), renderIndex(built, version) + "\n");
-  }
-
-  console.log(
-    `\nBuilt ${names.length} skill(s) into agent-skills/${
-      totalWarnings ? ` (${totalWarnings} warning(s))` : ""
-    }`,
-  );
 }
 
 // ---------------------------------------------------------------------------
-// renderIndex — agent-skills/README.md (generated)
+// renderIndex — the publish repo README.md (generated)
 // ---------------------------------------------------------------------------
 
 export function renderIndex(
@@ -607,45 +649,38 @@ export function renderIndex(
 ): string {
   const sorted = [...skills].sort((a, b) => a.name.localeCompare(b.name));
   const lines: string[] = [
-    "<!-- Auto-generated by bin/build-agent-skills.ts — do not edit manually. -->",
+    "<!-- Auto-generated by bin/build-agent-skills.ts in Anglesite/anglesite-skills — do not edit here. -->",
     "",
     "# Anglesite — Open Agent Skills",
     "",
-    `Spec-compliant [Agent Skills](https://agentskills.io) (skills.sh) generated from the`,
-    "Anglesite Claude Code plugin. Each skill is self-contained: bundled reference",
+    "[Anglesite](https://github.com/Anglesite/anglesite-skills) is an AI webmaster that builds,",
+    "designs, and deploys small-business websites (Astro + Keystatic on Cloudflare Workers).",
+    `These are its skills in the [Agent Skills](https://agentskills.io) format, for any agent the`,
+    "[skills CLI](https://www.skills.sh) supports. Each skill is self-contained: bundled reference",
     "material lives in its `references/` directory.",
     "",
-    "> Generated — do not edit by hand. Edit the plugin sources in `skills/` and run",
-    "> `npm run build:agent-skills`.",
+    "> **Generated — do not edit or open pull requests here.** This repo is rebuilt from",
+    "> [`Anglesite/anglesite-skills`](https://github.com/Anglesite/anglesite-skills) on every",
+    "> merge to `main`. File issues and changes there.",
     "",
     `**Version:** ${version} · **License:** ISC · ${sorted.length} skills`,
     "",
     "## Install",
     "",
-    "Install with the skills.sh CLI — the whole collection, or one skill:",
-    "",
     "```sh",
-    "npx skills add Anglesite/anglesite-skills/agent-skills",
-    "npx skills add Anglesite/anglesite-skills/agent-skills/<skill>",
+    `npx skills add ${PUBLISH_REPO}                 # pick from the full collection`,
+    `npx skills add ${PUBLISH_REPO} --skill start   # one skill`,
     "```",
     "",
-    "Always include the `agent-skills/` path: the repo's `skills/` directory holds the",
-    "Claude Code plugin sources, which depend on `${CLAUDE_PLUGIN_ROOT}` and only run",
-    "inside the plugin.",
-    "",
-    "> **Listing:** skills.sh has no submission step — its directory and",
-    "> `npx skills find` are populated from the CLI's anonymous install telemetry for",
-    "> public GitHub repos. A skill appears once it has been installed by path as above.",
+    "Start with `start` in an empty folder: it scaffolds the site the other skills work on.",
     "",
     "## Skills",
     "",
-    "| Skill | Install | Description |",
-    "|---|---|---|",
+    "| Skill | Description |",
+    "|---|---|",
   ];
   for (const s of sorted) {
-    lines.push(
-      `| \`${s.name}\` | \`npx skills add Anglesite/anglesite-skills/agent-skills/${s.name}\` | ${s.description} |`,
-    );
+    lines.push(`| [\`${s.name}\`](skills/${s.name}/SKILL.md) | ${s.description} |`);
   }
   lines.push("");
   return lines.join("\n");

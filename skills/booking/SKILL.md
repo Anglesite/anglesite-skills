@@ -4,8 +4,8 @@ description: "Embed appointment scheduling (Cal.com or Calendly) into the site"
 when_to_use: "Use when the owner wants customers to book appointments, classes, or consultations online, or mentions Cal.com or Calendly."
 allowed-tools: Write, Read, Glob, Bash(npm run build), Bash(npx astro check)
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

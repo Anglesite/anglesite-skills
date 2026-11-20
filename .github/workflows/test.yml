@@ -56,15 +56,10 @@ jobs:
 
       - run: npm ci
 
-      - name: Verify Open Agent Skills export is up to date
-        run: |
-          npm run build:agent-skills
-          # --porcelain also catches new untracked files (e.g. a new companion doc).
-          if [ -n "$(git status --porcelain agent-skills/)" ]; then
-            echo "::error::agent-skills/ is stale — run 'npm run build:agent-skills' and commit the result"
-            git status --short agent-skills/
-            exit 1
-          fi
+      # The export is published to Anglesite/agent-skills by publish-agent-skills.yml;
+      # here it only has to build cleanly (tests check its contents).
+      - name: Build Open Agent Skills export (fail on warnings)
+        run: npx tsx bin/build-agent-skills.ts --strict
 
   template-lockfile:
     runs-on: ubuntu-latest

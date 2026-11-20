@@ -4,8 +4,8 @@ description: "Show site analytics in plain language"
 when_to_use: "Use when the owner asks how many visitors they get, which pages are popular, where traffic comes from, or how the site is doing."
 allowed-tools: Bash(curl *), Bash(grep *), Bash(git log *), Bash(cat perf-trend.json), Write, Edit, Read, Glob
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

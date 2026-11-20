@@ -4,8 +4,8 @@ description: "Add on-site search so visitors can find content quickly"
 when_to_use: "Use when the site has enough pages or posts that visitors need a search box to find things."
 allowed-tools: Bash(npm install *), Bash(npm run build), Bash(npx astro check), Write, Read, Glob
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

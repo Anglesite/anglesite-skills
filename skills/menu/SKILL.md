@@ -4,8 +4,8 @@ description: "Create, import, or edit a restaurant menu from PDF, photo, or scra
 when_to_use: "Use when a restaurant, cafe, bar, or food business wants to add or update its menu, including from a PDF or photo."
 allowed-tools: Bash(npm run dev), Bash(npm run build), Read, Write, Glob, Grep
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

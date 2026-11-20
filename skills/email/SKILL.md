@@ -4,8 +4,8 @@ description: "Set up business email: Apple-first provider recommendation, DNS pr
 when_to_use: "Use when the owner wants a professional email address at their own domain or needs help choosing an email provider."
 user-invocable: false
 allowed-tools: Bash(curl *), Write, Read
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

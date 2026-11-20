@@ -4,8 +4,8 @@ description: "Build custom forms (RSVP, lead capture, survey, callback) with Key
 when_to_use: "Use when the owner needs a form beyond a basic contact form — RSVPs, lead capture, surveys, callback requests, or custom fields."
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(npx astro check), Bash(grep *), Write, Read, Glob
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

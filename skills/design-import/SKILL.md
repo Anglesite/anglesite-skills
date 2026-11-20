@@ -5,8 +5,8 @@ when_to_use: "Use when the owner already has a design in Canva, Figma, or a free
 argument-hint: "[Canva site URL, Figma file URL, or freedesignmd.com system URL]"
 allowed-tools: ["Bash(node *)", "Bash(npx sharp-cli *)", "Bash(npx playwright install *)", "Bash(npm install *)", "Bash(npm run dev *)", "Bash(npm run build)", "Bash(mkdir *)", "Bash(curl *)", "Bash(git add *)", "Bash(git commit *)", "Bash(git push *)", "Bash(ls *)", "Bash(npm ls *)", "Bash(grep *)", "WebFetch", "Write", "Read", "Edit", "Glob"]
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

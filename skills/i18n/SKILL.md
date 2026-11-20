@@ -4,8 +4,8 @@ description: "Set up multi-language support with localized routes, hreflang, and
 when_to_use: "Use when the site needs content in more than one language, translated pages, or a language switcher."
 user-invocable: false
 allowed-tools: Bash(npm run build), Bash(npx astro check), Write, Read, Glob
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

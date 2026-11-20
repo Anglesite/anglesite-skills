@@ -40,22 +40,17 @@ Then type `/anglesite:start` to begin.
 
 ### Open Agent Skills (any AI coding agent)
 
-Individual skills can be installed in any agent that supports the [Open Agent Skills](https://agentskills.io) spec ([skills.sh](https://www.skills.sh)):
+Every skill is also published in the [Open Agent Skills](https://agentskills.io) format to [`Anglesite/agent-skills`](https://github.com/Anglesite/agent-skills), for any agent the [skills CLI](https://www.skills.sh) supports:
 
 ```sh
 # Browse and install from the full collection
-npx skills add Anglesite/anglesite-skills/agent-skills
+npx skills add Anglesite/agent-skills
 
 # Install a single skill
-npx skills add Anglesite/anglesite-skills/agent-skills/start
-
-# Examples
-npx skills add Anglesite/anglesite-skills/agent-skills/deploy
-npx skills add Anglesite/anglesite-skills/agent-skills/seo
-npx skills add Anglesite/anglesite-skills/agent-skills/contact
+npx skills add Anglesite/agent-skills --skill start
 ```
 
-Always include the `agent-skills/` path. `skills/` holds the Claude Code plugin sources, which only run inside the plugin. Each skill is self-contained with bundled reference material. See [`agent-skills/README.md`](agent-skills/README.md) for the full list of available skills.
+Each skill is self-contained with bundled reference material. That repo is generated from this one on every merge to `main`.
 
 ---
 

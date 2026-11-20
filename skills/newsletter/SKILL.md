@@ -4,8 +4,8 @@ description: "Set up email newsletter with Buttondown, subscribe form, and auto-
 when_to_use: "Use when the owner wants to collect email subscribers, send a newsletter, or email new blog posts to followers."
 allowed-tools: Bash(npm run build), Bash(npx wrangler *), Bash(curl *), Bash(grep *), Write, Read, Edit, Glob
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---

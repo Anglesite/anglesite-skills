@@ -4,8 +4,8 @@ description: "Make the site installable as a Progressive Web App with offline su
 when_to_use: "Use when the owner wants visitors to install the site like an app on their phone or use it offline."
 allowed-tools: Bash(npm run build), Bash(node *), Write, Read, Glob, Edit
 disable-model-invocation: true
-# Plugin source: hidden from skills.sh discovery so `npx skills add` resolves
-# the generated agent-skills/ export instead (docs/dev/agent-skills.md).
+# Plugin source: hidden from skills.sh discovery. The installable Agent Skills
+# copy is generated into Anglesite/agent-skills (docs/dev/agent-skills.md).
 metadata:
   internal: true
 ---
